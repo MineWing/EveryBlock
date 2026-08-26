@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="docs/assets/everyblock-hero.png" alt="A wing-shaped collection of voxel blocks displayed inside an aircraft hangar" width="100%">
-</p>
-
 <h1 align="center">EveryBlock</h1>
 
 <p align="center">
