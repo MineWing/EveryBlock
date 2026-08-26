@@ -439,9 +439,9 @@ public final class GuiService {
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
         meta.displayName(plugin.messages().text(baseKey + ".name", replacements));
-        Component lore = plugin.messages().textOrNull(baseKey + ".lore", replacements);
-        if (lore != null) {
-            meta.lore(List.of(lore));
+        List<Component> lore = plugin.messages().lines(baseKey + ".lore", replacements);
+        if (!lore.isEmpty()) {
+            meta.lore(lore);
         }
         item.setItemMeta(meta);
         return item;
@@ -455,7 +455,7 @@ public final class GuiService {
         ItemStack item = new ItemStack(Material.COMPASS);
         ItemMeta meta = item.getItemMeta();
         meta.displayName(plugin.messages().text("gui.buttons.back-to-categories.name"));
-        meta.lore(List.of(plugin.messages().text(loreKey)));
+        meta.lore(plugin.messages().lines(loreKey));
         item.setItemMeta(meta);
         return item;
     }
@@ -464,7 +464,7 @@ public final class GuiService {
         ItemStack item = new ItemStack(Material.CLOCK);
         ItemMeta meta = item.getItemMeta();
         meta.displayName(plugin.messages().text("gui.recent-menu.empty-name"));
-        meta.lore(List.of(plugin.messages().text("gui.recent-menu.empty-lore")));
+        meta.lore(plugin.messages().lines("gui.recent-menu.empty-lore"));
         item.setItemMeta(meta);
         return item;
     }

@@ -285,32 +285,43 @@ gui:
   buttons:
     recent-discoveries:
       name: '<#f7a48d><bold>Recent Discoveries</bold></#f7a48d>'
-      lore: '<gray>See the collection history</gray>'
+      lore:
+        - '<gray>See what the team discovered most recently.</gray>'
+        - ''
+        - '<dark_gray>│</dark_gray> <#f7a48d>Left-click</#f7a48d> <gray>to open the collection history.</gray>'
     search-blocks:
       name: '<#f7a48d><bold>Search Blocks</bold></#f7a48d>'
-      lore: '<gray>Use <white>/blocks search ‹name›</white></gray>'
+      lore:
+        - '<gray>Find a specific block in the challenge.</gray>'
+        - ''
+        - '<dark_gray>│</dark_gray> <gray>Use</gray> <white>/blocks search &lt;name&gt;</white>'
     close:
       name: '<red><bold>Close</bold></red>'
-      lore: '<gray>Close this menu</gray>'
+      lore:
+        - '<dark_gray>│</dark_gray> <red>Left-click</red> <gray>to close this menu.</gray>'
     previous:
       # %page%
       name: '<#f7a48d><bold>Previous</bold></#f7a48d>'
-      lore: '<gray>Page %page%</gray>'
+      lore:
+        - '<dark_gray>│</dark_gray> <#f7a48d>Left-click</#f7a48d> <gray>to view page %page%.</gray>'
     next:
       # %page%
       name: '<#f7a48d><bold>Next</bold></#f7a48d>'
-      lore: '<gray>Page %page%</gray>'
+      lore:
+        - '<dark_gray>│</dark_gray> <#f7a48d>Left-click</#f7a48d> <gray>to view page %page%.</gray>'
     back-to-categories:
       name: '<#f7a48d><bold>Back to Categories</bold></#f7a48d>'
-      recent-lore: '<gray>Return to the collection</gray>'
-      block-lore: '<gray>Choose another block category</gray>'
+      recent-lore:
+        - '<dark_gray>│</dark_gray> <#f7a48d>Left-click</#f7a48d> <gray>to return to the categories.</gray>'
+      block-lore:
+        - '<dark_gray>│</dark_gray> <#f7a48d>Left-click</#f7a48d> <gray>to choose another category.</gray>'
     team-progress:
       name: '<#f7a48d><bold>Team Progress</bold></#f7a48d>'
     item-progress:
       name: '<#f7a48d><bold>Item Progress</bold></#f7a48d>'
     view-filter:
       name: '<#f7a48d><bold>View Filter</bold></#f7a48d>'
-      click-to-cycle: '<yellow>Click to cycle</yellow>'
+      click-to-cycle: '<dark_gray>│</dark_gray> <yellow>Left-click</yellow> <gray>to cycle views.</gray>'
       # %label%
       active: '<green><bold>• %label%</bold></green>'
       inactive: '<dark_gray>• %label%</dark_gray>'
@@ -322,7 +333,10 @@ gui:
 
   recent-menu:
     empty-name: '<gray><bold>No Discoveries Yet</bold></gray>'
-    empty-lore: '<white>Collected blocks will appear here.</white>'
+    empty-lore:
+      - '<gray>The team has not discovered anything yet.</gray>'
+      - ''
+      - '<dark_gray>│ Collected blocks will appear here.</dark_gray>'
 
   # The block/item collection items dropped into the menu grid.
   collectible:
@@ -333,30 +347,30 @@ gui:
     collected-prefix: '<green><bold>✔</bold></green> '
     missing-prefix: '<red><bold>✘</bold></red> '
     # %rarity% - pre-styled rarity label from gui.rarities.*
-    rarity-line: '<#f7a48d>ʀᴀʀɪᴛʏ</#f7a48d> <dark_gray>»</dark_gray> %rarity%'
+    rarity-line: '<dark_gray>│</dark_gray> <gray>Rarity:</gray> %rarity%'
     collected-header: '<green><bold>✔ ᴄᴏʟʟᴇᴄᴛᴇᴅ</bold></green>'
     # %player%
-    found-by: '<gray>Found by</gray> <dark_gray>»</dark_gray> <#f7a48d>%player%</#f7a48d>'
+    found-by: '<dark_gray>│</dark_gray> <gray>Found by:</gray> <#f7a48d>%player%</#f7a48d>'
     # %date%
-    discovered: '<gray>Discovered</gray> <dark_gray>»</dark_gray> <white>%date%</white>'
+    discovered: '<dark_gray>│</dark_gray> <gray>Discovered:</gray> <white>%date%</white>'
     not-collected-header: '<red><bold>✘ ɴᴏᴛ ʏᴇᴛ ᴄᴏʟʟᴇᴄᴛᴇᴅ</bold></red>'
-    bring-block: '<white>Bring this block into your inventory.</white>'
-    bring-item: '<white>Bring this item into your inventory.</white>'
+    bring-block: '<dark_gray>│</dark_gray> <gray>Bring this block into your inventory.</gray>'
+    bring-item: '<dark_gray>│</dark_gray> <gray>Bring this item into your inventory.</gray>'
 
   # Shared progress lines used by the team/item progress items and category tiles.
   progress:
     # %found%, %total%
-    collected-line: '<gray>Collected</gray> <dark_gray>»</dark_gray> <#f7a48d><bold>%found%</bold></#f7a48d><gray>/</gray><white>%total%</white>'
+    collected-line: '<dark_gray>│</dark_gray> <gray>Collected:</gray> <#f7a48d><bold>%found%</bold></#f7a48d><gray>/</gray><white>%total%</white>'
     # %percent%
-    complete-line: '<gray>Complete</gray> <dark_gray>»</dark_gray> <green>%percent%%</green>'
+    complete-line: '<dark_gray>│</dark_gray> <gray>Complete:</gray> <green>%percent%%</green>'
     # %remaining%
-    remaining-line: '<gray>Remaining</gray> <dark_gray>»</dark_gray> <yellow>%remaining%</yellow>'
+    remaining-line: '<dark_gray>│</dark_gray> <gray>Remaining:</gray> <yellow>%remaining%</yellow>'
 
   categories:
     # %name% / %description% wrap the per-category text below in a shared style.
     name-format: '<#f7a48d><bold>%name%</bold></#f7a48d>'
     description-format: '<white>%description%</white>'
-    click-to-browse: '<#f7a48d>▶ Click to browse</#f7a48d>'
+    click-to-browse: '<dark_gray>│</dark_gray> <#f7a48d>Left-click</#f7a48d> <gray>to browse this category.</gray>'
     ALL:
       name: 'All Blocks'
       description: 'Every block in the challenge'

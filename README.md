@@ -101,7 +101,7 @@ items:
   enabled: false       # Enable the companion Every Item challenge
 ```
 
-`config.yml` controls participants, catalogue exclusions, counting, GUI presentation, storage, and milestones. `messages.yml` contains ordered action lists for chat, broadcasts, sounds, particles, titles, boss bars, and fireworks.
+`config.yml` controls participants, catalogue exclusions, counting, GUI presentation, storage, and milestones. `messages.yml` contains ordered action lists for chat, broadcasts, sounds, particles, titles, boss bars, and fireworks, plus GUI lore as YAML string lists.
 
 Changing the database filename requires a full restart. Other supported settings can be refreshed with `/blocks reload`.
 

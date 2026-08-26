@@ -100,6 +100,31 @@ public final class MessageService {
         return raw == null ? null : Text.parse(raw);
     }
 
+    /**
+     * Configurable MiniMessage lore. YAML lists are preferred, while a scalar
+     * string remains valid so existing messages.yml files keep working.
+     */
+    public List<Component> lines(String key, Map<String, String> replacements) {
+        Map<String, String> values = withDefaults(replacements);
+        return configuredLines(messages.get(key)).stream()
+                .map(line -> Text.parse(replace(line, values)))
+                .toList();
+    }
+
+    public List<Component> lines(String key) {
+        return lines(key, Map.of());
+    }
+
+    static List<String> configuredLines(Object configured) {
+        if (configured instanceof String line) {
+            return line.isEmpty() ? List.of() : List.of(line);
+        }
+        if (!(configured instanceof List<?> list)) {
+            return List.of();
+        }
+        return list.stream().map(String::valueOf).toList();
+    }
+
     public String string(String key, Map<String, String> replacements, String fallback) {
         String raw = messages.getString(key);
         return raw == null ? fallback : replace(raw, withDefaults(replacements));

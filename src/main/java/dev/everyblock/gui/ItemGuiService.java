@@ -187,9 +187,9 @@ public final class ItemGuiService {
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
         meta.displayName(plugin.messages().text(baseKey + ".name", replacements));
-        Component lore = plugin.messages().textOrNull(baseKey + ".lore", replacements);
-        if (lore != null) {
-            meta.lore(List.of(lore));
+        List<Component> lore = plugin.messages().lines(baseKey + ".lore", replacements);
+        if (!lore.isEmpty()) {
+            meta.lore(lore);
         }
         item.setItemMeta(meta);
         return item;
