@@ -1,0 +1,416 @@
+# Every event is an enabled action list, matching Rivet and OneMillionCrops.
+# Supported tags:
+#   [message] <MiniMessage>
+#   [broadcast] <MiniMessage>
+#   [actionbar] <MiniMessage>
+#   [title] <title> | <subtitle> | <fade-in> | <stay> | <fade-out>
+#   [sound] <Bukkit sound> [volume] [pitch]
+#   [particles] <particle> [count] [offset-x] [offset-y] [offset-z] [speed]
+#   [firework] <#RRGGBB,#RRGGBB> | <type> | <power> | <count> | <gap ticks>
+#   [bossbar] <text> | <seconds> | <color> | <overlay> | <progress>
+
+tag: '<#f7a48d>BLOCKS</#f7a48d> <dark_gray>»</dark_gray>'
+
+no-permission:
+  enabled: true
+  actions:
+    - '[message] %tag% <white>You do not have permission to do that.</white>'
+    - '[sound] ENTITY_VILLAGER_NO 0.7 1.0'
+player-only:
+  enabled: true
+  actions:
+    - '[message] %tag% <white>Only a player can open the block collection.</white>'
+not-participant:
+  enabled: true
+  actions:
+    - '[message] %tag% <white>You are not on this challenge''s participant list.</white>'
+
+help:
+  enabled: true
+  actions:
+    - '[message] <#f7a48d><bold>BLOCKS</bold></#f7a48d> <dark_gray>—</dark_gray> <white>shared collection challenge</white>'
+    - '[message] <#f7a48d>/blocks</#f7a48d> <dark_gray>—</dark_gray> <white>open the collection GUI</white>'
+    - '[message] <#f7a48d>/blocks status</#f7a48d> <dark_gray>—</dark_gray> <white>show team progress</white>'
+    - '[message] <#f7a48d>/blocks search ‹block›</#f7a48d> <dark_gray>—</dark_gray> <white>search the collection</white>'
+    - '[message] <#f7a48d>/blocks top</#f7a48d> <dark_gray>—</dark_gray> <white>show contribution leaders</white>'
+admin-help:
+  enabled: true
+  actions:
+    - '[message] <gray>Admin:</gray> <#f7a48d>/blocks add ‹block›</#f7a48d> <dark_gray>|</dark_gray> <#f7a48d>remove ‹block›</#f7a48d>'
+    - '[message] <gray>Admin:</gray> <#f7a48d>/blocks reset confirm</#f7a48d> <dark_gray>|</dark_gray> <#f7a48d>reload</#f7a48d>'
+
+status:
+  enabled: true
+  actions:
+    - '[message] %tag% <white>Team progress: <#f7a48d><bold>%collected%/%total%</bold></#f7a48d> <gray>(%percent%%)</gray> <dark_gray>•</dark_gray> <white>%remaining% remaining</white>'
+top-header:
+  enabled: true
+  actions:
+    - '[message] <#f7a48d><bold>TOP BLOCK HUNTERS</bold></#f7a48d>'
+top-row:
+  enabled: true
+  actions:
+    - '[message] <dark_gray>%position%.</dark_gray> <white>%player%</white> <dark_gray>—</dark_gray> <#f7a48d>%amount%</#f7a48d>'
+top-empty:
+  enabled: true
+  actions:
+    - '[message] %tag% <white>No blocks have been discovered yet.</white>'
+
+block-found:
+  enabled: true
+  actions:
+    - '[broadcast] %tag% <white>%player% found </white>%block%<white>!</white> <dark_gray>(<gray>%collected%/%total%</gray>)</dark_gray>'
+    - '[actionbar] <#f7a48d><bold>NEW BLOCK</bold></#f7a48d> <dark_gray>•</dark_gray> %block% <dark_gray>•</dark_gray> <white>%percent%%</white>'
+block-found-epic:
+  enabled: true
+  actions:
+    - '[broadcast] %tag% <gradient:#C084FC:#8B5CF6><bold>EPIC FIND!</bold></gradient> <white>%player% found </white>%block% <dark_gray>(<gray>%collected%/%total%</gray>)</dark_gray>'
+    - '[actionbar] <gradient:#C084FC:#8B5CF6><bold>EPIC BLOCK</bold></gradient> <dark_gray>•</dark_gray> %block% <dark_gray>•</dark_gray> <white>%percent%%</white>'
+block-found-legendary:
+  enabled: true
+  actions:
+    - '[broadcast] %tag% <gradient:#FFF176:#FFD700:#FF8C00><bold>LEGENDARY FIND!</bold></gradient> <white>%player% found </white>%block% <dark_gray>(<gray>%collected%/%total%</gray>)</dark_gray>'
+    - '[actionbar] <gradient:#FFF176:#FFD700:#FF8C00><bold>LEGENDARY BLOCK</bold></gradient> <dark_gray>•</dark_gray> %block% <dark_gray>•</dark_gray> <white>%percent%%</white>'
+blocks-found:
+  enabled: true
+  actions:
+    - '[broadcast] %tag% <white>%player% found <#f7a48d><bold>%amount% new blocks!</bold></#f7a48d> <dark_gray>(<gray>%collected%/%total%</gray>)</dark_gray>'
+    - '[actionbar] <#f7a48d><bold>+%amount% NEW BLOCKS</bold></#f7a48d> <dark_gray>•</dark_gray> <white>%percent%% complete</white>'
+blocks-found-row:
+  enabled: true
+  actions:
+    - '[broadcast] <dark_gray>  •</dark_gray> %block%'
+
+# For multi-block discoveries, only the highest rarity found is celebrated.
+rarity-common:
+  enabled: true
+  actions:
+    - '[sound] ENTITY_EXPERIENCE_ORB_PICKUP 0.65 1.35'
+    - '[particles] HAPPY_VILLAGER 8 0.35 0.55 0.35 0.02'
+rarity-uncommon:
+  enabled: true
+  actions:
+    - '[sound] ENTITY_PLAYER_LEVELUP 0.75 1.45'
+    - '[particles] WAX_ON 18 0.45 0.65 0.45 0.04'
+rarity-rare:
+  enabled: true
+  actions:
+    - '[title] <aqua><bold>RARE FIND</bold></aqua> | %block% | 5 | 35 | 10'
+    - '[particles] ENCHANT 32 0.6 0.8 0.6 0.1'
+rarity-epic:
+  enabled: true
+  actions:
+    - '[title] <gradient:#C084FC:#8B5CF6><bold>EPIC FIND</bold></gradient> | %block% | 5 | 45 | 12'
+    - '[sound] UI_TOAST_GOAL_COMPLETE 0.9 1.25'
+    - '[sound] ENTITY_EXPERIENCE_ORB_PICKUP 0.75 1.7'
+    - '[particles] TOTEM_OF_UNDYING 40 0.7 0.9 0.7 0.08'
+    - '[firework] #D279FF,#F7A48D | STAR | 1 | 1 | 0'
+rarity-epic-message:
+  enabled: true
+  actions:
+    - '[broadcast] %tag% <gradient:#C084FC:#8B5CF6><bold>EPIC FIND!</bold></gradient> <white>%player% found </white>%block%'
+rarity-legendary:
+  enabled: true
+  actions:
+    - '[title] <gradient:#FFF176:#FFD700:#FF8C00><bold>LEGENDARY FIND</bold></gradient> | %block% | 8 | 65 | 15'
+    - '[sound] UI_TOAST_CHALLENGE_COMPLETE 1.0 0.85'
+    - '[sound] BLOCK_BEACON_ACTIVATE 1.0 1.0'
+    - '[sound] ENTITY_PLAYER_LEVELUP 1.0 0.65'
+    - '[particles] END_ROD 70 0.9 1.1 0.9 0.08'
+    - '[firework] #FFD65A,#F7A48D,#FFFFFF | STAR | 1 | 3 | 8'
+rarity-legendary-message:
+  enabled: true
+  actions:
+    - '[broadcast] %tag% <gradient:#FFF176:#FFD700:#FF8C00><bold>LEGENDARY FIND!</bold></gradient> <white>%player% found </white>%block%'
+milestone:
+  enabled: true
+  actions:
+    - '[broadcast] %tag% <#f7a48d><bold>%percent%% COMPLETE!</bold></#f7a48d> <white>Only %remaining% blocks remain.</white>'
+    - '[title] <#f7a48d><bold>%percent%%</bold></#f7a48d> | <white>Every Block challenge</white> | 10 | 60 | 15'
+    - '[sound] UI_TOAST_GOAL_COMPLETE 0.9 1.1'
+    - '[particles] TOTEM_OF_UNDYING 40 0.8 1.0 0.8 0.1'
+    - '[firework] #F7A48D,#FFFFFF | BALL_LARGE | 1 | 2 | 8'
+complete-start:
+  enabled: true
+  actions:
+    - '[broadcast] <#f7a48d><bold>EVERY. SINGLE. BLOCK. COLLECTED.</bold></#f7a48d>'
+    - '[title] <#f7a48d><bold>CHALLENGE COMPLETE</bold></#f7a48d> | <white>Every block. Absolute legends.</white> | 10 | 55 | 15'
+    - '[sound] UI_TOAST_CHALLENGE_COMPLETE 1.0 1.0'
+complete-final-block:
+  enabled: true
+  actions:
+    - '[broadcast] %tag% <white>%player% found the final block: %block%</white>'
+    - '[title] <white>FINAL BLOCK</white> | %block% | 8 | 45 | 12'
+    - '[sound] BLOCK_END_PORTAL_SPAWN 0.8 1.15'
+complete-stats:
+  enabled: true
+  actions:
+    - '[broadcast] <dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray>'
+    - '[broadcast] <#f7a48d><bold>FINAL CHALLENGE STATS</bold></#f7a48d>'
+    - '[broadcast] <gray>Combined playtime</gray> <dark_gray>»</dark_gray> <white>%playtime%</white>'
+    - '[broadcast] <gray>Block hunters</gray> <dark_gray>»</dark_gray> <white>%contributors%</white>'
+complete-contributor:
+  enabled: true
+  actions:
+    - '[broadcast] <dark_gray>  •</dark_gray> <#f7a48d>%contributor%</#f7a48d> <dark_gray>(<gray>%amount% blocks</gray>)</dark_gray>'
+complete-finale:
+  enabled: true
+  actions:
+    - '[broadcast] <dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray>'
+    - '[title] <#f7a48d><bold>EVERY BLOCK</bold></#f7a48d> | <white>Challenge complete!</white> | 10 | 100 | 20'
+    - '[bossbar] <#f7a48d><bold>EVERY BLOCK COMPLETE</bold></#f7a48d> | 12 | PINK | PROGRESS | 1.0'
+    - '[sound] UI_TOAST_CHALLENGE_COMPLETE 1.0 0.9'
+    - '[firework] #F7A48D,#FFFFFF | STAR | 1 | 8 | 8'
+
+items-disabled:
+  enabled: true
+  actions:
+    - '[message] <#f7a48d>ITEMS</#f7a48d> <dark_gray>»</dark_gray> <white>The Every Item challenge is disabled. Set <#f7a48d>items.enabled</#f7a48d> to <green>true</green>.</white>'
+items-status:
+  enabled: true
+  actions:
+    - '[message] <#f7a48d>ITEMS</#f7a48d> <dark_gray>»</dark_gray> <white>Team progress: <#f7a48d><bold>%collected%/%total%</bold></#f7a48d> <gray>(%percent%%)</gray> <dark_gray>•</dark_gray> <white>%remaining% remaining</white>'
+item-found:
+  enabled: true
+  actions:
+    - '[broadcast] <#f7a48d>ITEMS</#f7a48d> <dark_gray>»</dark_gray> <white>%player% found </white>%item%<white>!</white> <dark_gray>(<gray>%collected%/%total%</gray>)</dark_gray>'
+    - '[sound] ENTITY_ITEM_PICKUP 0.6 1.3'
+items-found:
+  enabled: true
+  actions:
+    - '[broadcast] <#f7a48d>ITEMS</#f7a48d> <dark_gray>»</dark_gray> <white>%player% found <#f7a48d><bold>%amount% new items!</bold></#f7a48d> <dark_gray>(<gray>%collected%/%total%</gray>)</dark_gray>'
+    - '[sound] ENTITY_ITEM_PICKUP 0.7 1.45'
+items-found-row:
+  enabled: true
+  actions:
+    - '[broadcast] <dark_gray>  •</dark_gray> %item%'
+items-complete:
+  enabled: true
+  actions:
+    - '[broadcast] <#f7a48d><bold>EVERY ITEM HAS BEEN COLLECTED!</bold></#f7a48d>'
+    - '[title] <#f7a48d><bold>EVERY ITEM</bold></#f7a48d> | <white>Collection complete!</white> | 10 | 100 | 20'
+    - '[sound] UI_TOAST_CHALLENGE_COMPLETE 1.0 1.0'
+    - '[firework] #F7A48D,#FFFFFF | STAR | 1 | 5 | 10'
+items-reset-warning:
+  enabled: true
+  actions:
+    - '[message] <#f7a48d>ITEMS</#f7a48d> <dark_gray>»</dark_gray> <red>Use /items reset confirm to erase all item progress.</red>'
+items-reset:
+  enabled: true
+  actions:
+    - '[broadcast] <#f7a48d>ITEMS</#f7a48d> <dark_gray>»</dark_gray> <white>%player% reset the Every Item challenge.</white>'
+
+gui-open:
+  enabled: true
+  actions:
+    - '[sound] BLOCK_ENDER_CHEST_OPEN 0.6 1.35'
+gui-next-page:
+  enabled: true
+  actions:
+    - '[sound] ITEM_BOOK_PAGE_TURN 0.7 1.15'
+recipe-open:
+  enabled: true
+  actions:
+    - '[sound] ITEM_BOOK_PAGE_TURN 0.7 1.0'
+no-recipe:
+  enabled: true
+  actions:
+    - '[message] %tag% %block% <white>cannot be crafted.</white>'
+search-empty:
+  enabled: true
+  actions:
+    - '[message] %tag% <white>No challenge blocks match <#f7a48d>%query%</#f7a48d>.</white>'
+unknown-block:
+  enabled: true
+  actions:
+    - '[message] %tag% <white>Unknown or excluded block <#f7a48d>%block%</#f7a48d>.</white>'
+already-found:
+  enabled: true
+  actions:
+    - '[message] %tag% %block% <white>was already found.</white>'
+added:
+  enabled: true
+  actions:
+    - '[message] %tag% <white>Added %block% <white>to the collected list.</white>'
+removed:
+  enabled: true
+  actions:
+    - '[message] %tag% <white>Removed %block% <white>from the collected list.</white>'
+not-found:
+  enabled: true
+  actions:
+    - '[message] %tag% %block% <white>has not been found yet.</white>'
+reset-warning:
+  enabled: true
+  actions:
+    - '[message] %tag% <red><bold>DANGER:</bold></red> <white>Use <#f7a48d>/blocks reset confirm</#f7a48d> to erase all challenge progress.</white>'
+reset-complete:
+  enabled: true
+  actions:
+    - '[broadcast] %tag% <white>%player% reset the Every Block challenge. Fresh start!</white>'
+    - '[sound] BLOCK_RESPAWN_ANCHOR_DEPLETE 0.8 0.8'
+reloaded:
+  enabled: true
+  actions:
+    - '[message] %tag% <white>Configuration and messages reloaded. <#f7a48d>%total%</#f7a48d> blocks are in the challenge.</white>'
+reload-failed:
+  enabled: true
+  actions:
+    - '[message] %tag% <white>Reload failed. Check the console; existing progress is safe.</white>'
+database-error:
+  enabled: true
+  actions:
+    - '[message] %tag% <white>The progress database could not be updated. Staff have been notified.</white>'
+
+# ---------------------------------------------------------------------------
+# GUI text (/blocks and /items menus). Every title, button, and lore line the
+# menus render is a raw MiniMessage string built from this section, so it
+# reloads instantly with /blocks reload. %tag% and the usual placeholders
+# (noted per key below) work here too.
+# ---------------------------------------------------------------------------
+gui:
+  block-menu:
+    # %page%, %pages%
+    categories-title: '<#f7a48d><bold>BLOCKS</bold></#f7a48d> <dark_gray>•</dark_gray> <white>Categories</white>'
+    recent-title: '<#f7a48d><bold>RECENT DISCOVERIES</bold></#f7a48d> <dark_gray>•</dark_gray> <gray>%page%/%pages%</gray>'
+    # %block%
+    recipe-title: '<#f7a48d><bold>RECIPE</bold></#f7a48d> <dark_gray>•</dark_gray> <white>%block%</white>'
+    items-title: '<#f7a48d><bold>ITEMS</bold></#f7a48d> <dark_gray>•</dark_gray> <gray>%page%/%pages%</gray>'
+
+  # Filled/empty colors for the ■■■□□ progress bars.
+  progress-bar:
+    filled: '#f7a48d'
+    empty: 'dark_gray'
+
+  buttons:
+    recent-discoveries:
+      name: '<#f7a48d><bold>Recent Discoveries</bold></#f7a48d>'
+      lore: '<gray>See the collection history</gray>'
+    search-blocks:
+      name: '<#f7a48d><bold>Search Blocks</bold></#f7a48d>'
+      lore: '<gray>Use <white>/blocks search ‹name›</white></gray>'
+    close:
+      name: '<red><bold>Close</bold></red>'
+      lore: '<gray>Close this menu</gray>'
+    previous:
+      # %page%
+      name: '<#f7a48d><bold>Previous</bold></#f7a48d>'
+      lore: '<gray>Page %page%</gray>'
+    next:
+      # %page%
+      name: '<#f7a48d><bold>Next</bold></#f7a48d>'
+      lore: '<gray>Page %page%</gray>'
+    back-to-categories:
+      name: '<#f7a48d><bold>Back to Categories</bold></#f7a48d>'
+      recent-lore: '<gray>Return to the collection</gray>'
+      block-lore: '<gray>Choose another block category</gray>'
+    team-progress:
+      name: '<#f7a48d><bold>Team Progress</bold></#f7a48d>'
+    item-progress:
+      name: '<#f7a48d><bold>Item Progress</bold></#f7a48d>'
+    view-filter:
+      name: '<#f7a48d><bold>View Filter</bold></#f7a48d>'
+      click-to-cycle: '<yellow>Click to cycle</yellow>'
+      # %label%
+      active: '<green><bold>• %label%</bold></green>'
+      inactive: '<dark_gray>• %label%</dark_gray>'
+
+  filters:
+    all: 'All'
+    found: 'Found'
+    missing: 'Missing'
+
+  recent-menu:
+    empty-name: '<gray><bold>No Discoveries Yet</bold></gray>'
+    empty-lore: '<white>Collected blocks will appear here.</white>'
+
+  # The block/item collection items dropped into the menu grid.
+  collectible:
+    # %name% - only used for common/uncommon rarity, which have no gradient
+    collected-name: '<green><bold>✔ %name%</bold></green>'
+    missing-name: '<red><bold>✘ %name%</bold></red>'
+    # Epic/legendary names keep their rarity gradient; only the check/cross prefix is styled here.
+    collected-prefix: '<green><bold>✔</bold></green> '
+    missing-prefix: '<red><bold>✘</bold></red> '
+    # %rarity% - pre-styled rarity label from gui.rarities.*
+    rarity-line: '<#f7a48d>ʀᴀʀɪᴛʏ</#f7a48d> <dark_gray>»</dark_gray> %rarity%'
+    collected-header: '<green><bold>✔ ᴄᴏʟʟᴇᴄᴛᴇᴅ</bold></green>'
+    # %player%
+    found-by: '<gray>Found by</gray> <dark_gray>»</dark_gray> <#f7a48d>%player%</#f7a48d>'
+    # %date%
+    discovered: '<gray>Discovered</gray> <dark_gray>»</dark_gray> <white>%date%</white>'
+    not-collected-header: '<red><bold>✘ ɴᴏᴛ ʏᴇᴛ ᴄᴏʟʟᴇᴄᴛᴇᴅ</bold></red>'
+    bring-block: '<white>Bring this block into your inventory.</white>'
+    bring-item: '<white>Bring this item into your inventory.</white>'
+
+  # Shared progress lines used by the team/item progress items and category tiles.
+  progress:
+    # %found%, %total%
+    collected-line: '<gray>Collected</gray> <dark_gray>»</dark_gray> <#f7a48d><bold>%found%</bold></#f7a48d><gray>/</gray><white>%total%</white>'
+    # %percent%
+    complete-line: '<gray>Complete</gray> <dark_gray>»</dark_gray> <green>%percent%%</green>'
+    # %remaining%
+    remaining-line: '<gray>Remaining</gray> <dark_gray>»</dark_gray> <yellow>%remaining%</yellow>'
+
+  categories:
+    # %name% / %description% wrap the per-category text below in a shared style.
+    name-format: '<#f7a48d><bold>%name%</bold></#f7a48d>'
+    description-format: '<white>%description%</white>'
+    click-to-browse: '<#f7a48d>▶ Click to browse</#f7a48d>'
+    ALL:
+      name: 'All Blocks'
+      description: 'Every block in the challenge'
+    TERRAIN:
+      name: 'Terrain'
+      description: 'Dirt, sand, ice and natural ground'
+    ORES:
+      name: 'Ores & Minerals'
+      description: 'Ores, raw blocks and mineral blocks'
+    PLANTS:
+      name: 'Plants & Ocean'
+      description: 'Plants, leaves, coral and aquatic blocks'
+    WOOD:
+      name: 'Wood Families'
+      description: 'Logs, planks and wooden building pieces'
+    STONE:
+      name: 'Stone & Masonry'
+      description: 'Stone, bricks and masonry families'
+    COLOURED:
+      name: 'Colours & Fabrics'
+      description: 'Wool, concrete, terracotta and beds'
+    GLASS_LIGHT:
+      name: 'Glass & Lighting'
+      description: 'Glass, lamps, lanterns and light sources'
+    REDSTONE:
+      name: 'Redstone'
+      description: 'Components, rails and mechanisms'
+    FUNCTIONAL:
+      name: 'Utility & Storage'
+      description: 'Workstations, storage and useful blocks'
+    NETHER:
+      name: 'The Nether'
+      description: 'Blocks originating in the Nether'
+    END:
+      name: 'The End'
+      description: 'Blocks originating in the End'
+    MISC:
+      name: 'Special & Misc'
+      description: 'Unique blocks that belong nowhere else'
+
+  # Label and color per rarity tier, used by the GUI and by %rarity% above.
+  rarities:
+    common:
+      label: 'ᴄᴏᴍᴍᴏɴ'
+      color: 'white'
+    uncommon:
+      label: 'ᴜɴᴄᴏᴍᴍᴏɴ'
+      color: 'green'
+    rare:
+      label: 'ʀᴀʀᴇ'
+      color: 'aqua'
+    epic:
+      label: 'ᴇᴘɪᴄ'
+      color: 'gradient:#C084FC:#8B5CF6'
+    legendary:
+      label: 'ʟᴇɢᴇɴᴅᴀʀʏ'
+      color: 'gradient:#FFF176:#FFD700:#FF8C00'

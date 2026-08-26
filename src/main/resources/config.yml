@@ -1,0 +1,69 @@
+# ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+# ┃                       EVERY BLOCK                          ┃
+# ┃              Reload with /blocks reload                   ┃
+# ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+participants:
+  # EVERYONE lets every non-creative player contribute.
+  # ALLOWLIST only counts the UUIDs listed below.
+  mode: EVERYONE
+  allowlist: []
+
+counting:
+  # Inventory scanning catches blocks from mining, crafting, trading, loot,
+  # smelting and every other legitimate way an item enters a player's inventory.
+  scan-interval-ticks: 10
+  count-creative-mode: false
+
+blocks:
+  # Every material that is both a placeable block and an inventory item is
+  # included automatically. These vanilla items are not obtainable in survival.
+  excluded:
+    - BARRIER
+    - BEDROCK
+    - BUDDING_AMETHYST
+    - COMMAND_BLOCK
+    - CHAIN_COMMAND_BLOCK
+    - REPEATING_COMMAND_BLOCK
+    - END_PORTAL_FRAME
+    - FROGSPAWN
+    - JIGSAW
+    - LIGHT
+    - PETRIFIED_OAK_SLAB
+    - PLAYER_HEAD
+    - REINFORCED_DEEPSLATE
+    - SPAWNER
+    - STRUCTURE_BLOCK
+    - STRUCTURE_VOID
+    - SUSPICIOUS_GRAVEL
+    - SUSPICIOUS_SAND
+    - TRIAL_SPAWNER
+    - VAULT
+  # Prefixes are useful for whole technical families.
+  excluded-prefixes:
+    - INFESTED_
+  # Explicit includes win over configurable exclusions. The plugin's small
+  # built-in survival-safety denylist cannot be overridden.
+  included: []
+
+items:
+  # Optional Every Item companion challenge. Set this to true and use /items.
+  # It is deliberately disabled by default.
+  enabled: false
+  # Every obtainable inventory material, including block items, is tracked.
+  # Command-only, technical and spawn-egg items are always rejected.
+  excluded: []
+  excluded-prefixes: []
+  included: []
+
+storage:
+  # Changing this requires a full restart, not /blocks reload.
+  database-file: progress.db
+
+gui:
+  # Available placeholders: %category%, %page%, %pages%
+  title: '<#f7a48d><bold>%category%</bold></#f7a48d> <dark_gray>•</dark_gray> <gray>%page%/%pages%</gray>'
+  date-format: 'dd MMM yyyy, HH:mm'
+
+celebration:
+  milestones: [10, 25, 50, 75, 90]

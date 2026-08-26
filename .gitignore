@@ -1,0 +1,21 @@
+# Maven build output
+target/
+dependency-reduced-pom.xml
+
+# IDE metadata
+.idea/
+.vscode/
+.settings/
+.classpath
+.project
+*.iml
+
+# Operating system files
+.DS_Store
+
+# Runtime data
+*.log
+*.db
+*.db-*
+*.sqlite
+*.sqlite3

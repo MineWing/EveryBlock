@@ -1,0 +1,28 @@
+name: EveryBlock
+version: '${project.version}'
+main: dev.everyblock.EveryBlockPlugin
+api-version: '1.21.11'
+authors: [Alex]
+description: A shared collect-every-block challenge.
+softdepend: [PlaceholderAPI]
+
+commands:
+  blocks:
+    description: Open and manage the Every Block challenge
+    usage: /blocks help
+    aliases: [everyblock, blockchallenge, blockdex]
+  items:
+    description: Open the optional Every Item challenge
+    usage: /items
+    aliases: [everyitem, itemchallenge, itemdex]
+
+permissions:
+  everyblock.use:
+    description: View and contribute to the Every Block challenge
+    default: true
+  everyblock.admin:
+    description: Add or remove blocks, reset progress, and reload EveryBlock
+    default: op
+  everyblock.items:
+    description: View and contribute to the optional Every Item challenge
+    default: true
