@@ -115,9 +115,8 @@ public final class GuiService {
     private boolean open(Player player, int requestedPage, BlockFilter filter, String query,
                          BlockCategory category, boolean playOpenEffect) {
         List<Material> visible = visibleBlocks(filter, query, category);
-        if (visible.isEmpty() && query != null && !query.isBlank()) {
+        if (playOpenEffect && visible.isEmpty() && query != null && !query.isBlank()) {
             plugin.messages().send(player, "search-empty", Map.of("query", Text.escape(query)));
-            return false;
         }
         int pages = Math.max(1, (visible.size() + PAGE_SIZE - 1) / PAGE_SIZE);
         int page = Math.clamp(requestedPage, 0, pages - 1);
@@ -268,6 +267,12 @@ public final class GuiService {
 
     public void refreshOpenMenus() {
         for (Player player : Bukkit.getOnlinePlayers()) {
+            Object currentHolder = player.getOpenInventory().getTopInventory().getHolder(false);
+            if (!(currentHolder instanceof ItemGuiHolder) && ownsMenu(currentHolder)
+                    && !player.hasPermission("everyblock.use")) {
+                player.closeInventory();
+                continue;
+            }
             if (player.getOpenInventory().getTopInventory().getHolder(false) instanceof BlockGuiHolder holder) {
                 open(player, holder.page(), holder.filter(), holder.query(), holder.category(), false);
             } else if (player.getOpenInventory().getTopInventory().getHolder(false) instanceof CategoryGuiHolder) {
@@ -276,6 +281,21 @@ public final class GuiService {
                 openRecent(player, holder.page(), false);
             }
         }
+    }
+
+    /** Close every inventory owned by this plugin before its listeners are removed. */
+    public void closeOpenMenus() {
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            if (ownsMenu(player.getOpenInventory().getTopInventory().getHolder(false))) {
+                player.closeInventory();
+            }
+        }
+    }
+
+    private static boolean ownsMenu(Object holder) {
+        return holder instanceof BlockGuiHolder || holder instanceof CategoryGuiHolder
+                || holder instanceof RecentGuiHolder || holder instanceof ItemGuiHolder
+                || holder instanceof RecipeGuiHolder;
     }
 
     private List<Material> visibleBlocks(BlockFilter filter, String query, BlockCategory category) {

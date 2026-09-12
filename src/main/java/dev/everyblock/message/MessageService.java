@@ -1,6 +1,7 @@
 package dev.everyblock.message;
 
 import dev.everyblock.util.Text;
+import dev.everyblock.config.StrictYaml;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.title.Title;
@@ -15,6 +16,12 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Firework;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityRemoveEvent;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.inventory.meta.FireworkMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -26,8 +33,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Objects;
+import java.util.Set;
 
-public final class MessageService {
+public final class MessageService implements Listener {
+    private static final NamespacedKey CELEBRATION = new NamespacedKey("everyblock", "celebration");
+    private final Map<BossBar, List<Player>> activeBossBars = new HashMap<>();
+    private final Set<Firework> activeFireworks = new HashSet<>();
     private final JavaPlugin plugin;
     private YamlConfiguration messages;
 
@@ -36,11 +50,19 @@ public final class MessageService {
     }
 
     public void load() {
+        apply(prepare());
+    }
+
+    public YamlConfiguration prepare() {
         File file = new File(plugin.getDataFolder(), "messages.yml");
         if (!file.isFile()) {
             plugin.saveResource("messages.yml", false);
         }
-        messages = YamlConfiguration.loadConfiguration(file);
+        return StrictYaml.load(file);
+    }
+
+    public void apply(YamlConfiguration prepared) {
+        messages = Objects.requireNonNull(prepared);
     }
 
     public void send(CommandSender recipient, String key) {
@@ -233,17 +255,49 @@ public final class MessageService {
         BossBar.Overlay overlay = enumValue(BossBar.Overlay.class, parts.length > 3 ? parts[3] : "PROGRESS");
         float progress = Math.clamp(decimal(parts, 4, 1.0F), 0.0F, 1.0F);
         BossBar bossBar = BossBar.bossBar(Text.parse(parts[0]), progress, color, overlay);
+        activeBossBars.put(bossBar, List.copyOf(players));
         players.forEach(player -> player.showBossBar(bossBar));
         plugin.getServer().getScheduler().runTaskLater(plugin,
-                () -> players.forEach(player -> player.hideBossBar(bossBar)), seconds * 20L);
+                () -> hideBossBar(bossBar), seconds * 20L);
     }
 
-    private static void launch(Player player, List<Color> colors, FireworkEffect.Type type, int power) {
-        Firework firework = player.getWorld().spawn(player.getLocation().add(0, 1, 0), Firework.class);
-        FireworkMeta meta = firework.getFireworkMeta();
-        meta.addEffect(FireworkEffect.builder().with(type).withColor(colors).trail(true).flicker(true).build());
-        meta.setPower(power);
-        firework.setFireworkMeta(meta);
+    private void launch(Player player, List<Color> colors, FireworkEffect.Type type, int power) {
+        player.getWorld().spawn(player.getLocation().add(0, 1, 0), Firework.class, firework -> {
+            firework.getPersistentDataContainer().set(CELEBRATION, PersistentDataType.BYTE, (byte) 1);
+            activeFireworks.add(firework);
+            FireworkMeta meta = firework.getFireworkMeta();
+            meta.addEffect(FireworkEffect.builder().with(type).withColor(colors).trail(true).flicker(true).build());
+            meta.setPower(power);
+            firework.setFireworkMeta(meta);
+        });
+    }
+
+    private void hideBossBar(BossBar bossBar) {
+        List<Player> viewers = activeBossBars.remove(bossBar);
+        if (viewers != null) {
+            viewers.forEach(player -> player.hideBossBar(bossBar));
+        }
+    }
+
+    public void shutdown() {
+        new ArrayList<>(activeBossBars.keySet()).forEach(this::hideBossBar);
+        new ArrayList<>(activeFireworks).forEach(Firework::remove);
+        activeFireworks.clear();
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onCelebrationDamage(EntityDamageByEntityEvent event) {
+        if (event.getDamager() instanceof Firework firework
+                && firework.getPersistentDataContainer().has(CELEBRATION, PersistentDataType.BYTE)) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onEntityRemove(EntityRemoveEvent event) {
+        if (event.getEntity() instanceof Firework firework) {
+            activeFireworks.remove(firework);
+        }
     }
 
     private static List<Color> parseColors(String payload) {

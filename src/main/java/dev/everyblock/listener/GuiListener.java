@@ -11,6 +11,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.inventory.Inventory;
 
 public final class GuiListener implements Listener {
     private final EveryBlockPlugin plugin;
@@ -31,15 +32,33 @@ public final class GuiListener implements Listener {
         if (event.getWhoClicked() instanceof Player player
                 && event.getRawSlot() >= 0
                 && event.getRawSlot() < event.getView().getTopInventory().getSize()) {
-            if (holder instanceof BlockGuiHolder blockHolder) {
-                plugin.gui().handleClick(player, event.getRawSlot(), blockHolder);
-            } else if (holder instanceof RecentGuiHolder recentHolder) {
-                plugin.gui().handleRecentClick(player, event.getRawSlot(), recentHolder);
-            } else if (holder instanceof ItemGuiHolder itemHolder) {
-                plugin.itemGui().handleClick(player, event.getRawSlot(), itemHolder);
-            } else if (!(holder instanceof RecipeGuiHolder)) {
-                plugin.gui().handleCategoryClick(player, event.getRawSlot());
-            }
+            Inventory expected = event.getView().getTopInventory();
+            int rawSlot = event.getRawSlot();
+            plugin.getServer().getScheduler().runTask(plugin, () -> {
+                if (!player.isOnline() || player.getOpenInventory().getTopInventory() != expected) {
+                    return;
+                }
+                boolean items = holder instanceof ItemGuiHolder;
+                if (!player.hasPermission(items ? "everyblock.items" : "everyblock.use")) {
+                    player.closeInventory();
+                    plugin.messages().send(player, "no-permission");
+                    return;
+                }
+                if (items && !plugin.settings().itemsEnabled()) {
+                    player.closeInventory();
+                    plugin.messages().send(player, "items-disabled");
+                    return;
+                }
+                if (holder instanceof BlockGuiHolder blockHolder) {
+                    plugin.gui().handleClick(player, rawSlot, blockHolder);
+                } else if (holder instanceof RecentGuiHolder recentHolder) {
+                    plugin.gui().handleRecentClick(player, rawSlot, recentHolder);
+                } else if (holder instanceof ItemGuiHolder itemHolder) {
+                    plugin.itemGui().handleClick(player, rawSlot, itemHolder);
+                } else if (holder instanceof CategoryGuiHolder) {
+                    plugin.gui().handleCategoryClick(player, rawSlot);
+                }
+            });
         }
     }
 

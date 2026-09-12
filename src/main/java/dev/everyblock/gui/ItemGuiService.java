@@ -34,6 +34,9 @@ public final class ItemGuiService {
     }
 
     private void open(Player player, int requestedPage, BlockFilter filter, boolean playEffect) {
+        if (!checkAccess(player)) {
+            return;
+        }
         List<Material> visible = plugin.itemCatalogue().items().stream()
                 .filter(material -> switch (filter) {
                     case ALL -> true;
@@ -73,6 +76,9 @@ public final class ItemGuiService {
     }
 
     public void handleClick(Player player, int slot, ItemGuiHolder holder) {
+        if (!checkAccess(player)) {
+            return;
+        }
         switch (slot) {
             case 45 -> open(player, holder.page() - 1, holder.filter());
             case 47 -> open(player, 0, holder.filter().next());
@@ -94,6 +100,19 @@ public final class ItemGuiService {
                 open(player, holder.page(), holder.filter(), false);
             }
         }
+    }
+
+    private boolean checkAccess(Player player) {
+        String denial = !player.hasPermission("everyblock.items") ? "no-permission"
+                : !plugin.settings().itemsEnabled() ? "items-disabled" : null;
+        if (denial == null) {
+            return true;
+        }
+        if (player.getOpenInventory().getTopInventory().getHolder(false) instanceof ItemGuiHolder) {
+            player.closeInventory();
+        }
+        plugin.messages().send(player, denial);
+        return false;
     }
 
     private ItemStack item(Material material) {

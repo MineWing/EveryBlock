@@ -5,12 +5,15 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
 import java.nio.file.Path;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
+import java.util.Objects;
+import java.util.logging.Logger;
 
 public final class ConfigService {
     private final JavaPlugin plugin;
@@ -21,21 +24,27 @@ public final class ConfigService {
     }
 
     public void load() {
+        apply(prepare());
+    }
+
+    public PluginSettings prepare() {
         plugin.saveDefaultConfig();
         File messages = new File(plugin.getDataFolder(), "messages.yml");
         if (!messages.isFile()) {
             plugin.saveResource("messages.yml", false);
         }
-        YamlConfiguration config = YamlConfiguration.loadConfiguration(
-                new File(plugin.getDataFolder(), "config.yml"));
+        return prepare(new File(plugin.getDataFolder(), "config.yml"),
+                plugin.getDataFolder().toPath(), plugin.getLogger());
+    }
 
+    static PluginSettings prepare(File file, Path folder, Logger logger) {
+        YamlConfiguration config = StrictYaml.load(file);
         PluginSettings.ParticipantMode mode;
         try {
             mode = PluginSettings.ParticipantMode.valueOf(
-                    config.getString("participants.mode", "EVERYONE").toUpperCase(Locale.ROOT));
+                    config.getString("participants.mode", "EVERYONE").strip().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException exception) {
-            plugin.getLogger().warning("Invalid participants.mode; using EVERYONE.");
-            mode = PluginSettings.ParticipantMode.EVERYONE;
+            throw new IllegalArgumentException("participants.mode must be EVERYONE or ALLOWLIST", exception);
         }
 
         Set<UUID> allowlist = new LinkedHashSet<>();
@@ -43,7 +52,7 @@ public final class ConfigService {
             try {
                 allowlist.add(UUID.fromString(configured));
             } catch (IllegalArgumentException exception) {
-                plugin.getLogger().warning("Ignoring invalid participant UUID: " + configured);
+                logger.warning("Ignoring invalid participant UUID: " + configured);
             }
         }
 
@@ -51,7 +60,7 @@ public final class ConfigService {
         if (databaseFile == null || databaseFile.isBlank()) {
             databaseFile = "progress.db";
         }
-        Path dataFolder = plugin.getDataFolder().toPath().toAbsolutePath().normalize();
+        Path dataFolder = folder.toAbsolutePath().normalize();
         Path databasePath = dataFolder.resolve(databaseFile).normalize();
         if (!databasePath.startsWith(dataFolder)) {
             throw new IllegalArgumentException("storage.database-file must remain inside the plugin folder");
@@ -65,7 +74,10 @@ public final class ConfigService {
         }
         milestones.sort(Integer::compareTo);
 
-        settings = new PluginSettings(
+        String dateFormat = config.getString("gui.date-format", "dd MMM yyyy, HH:mm");
+        DateTimeFormatter.ofPattern(dateFormat);
+
+        return new PluginSettings(
                 mode,
                 Set.copyOf(allowlist),
                 Math.clamp(config.getInt("counting.scan-interval-ticks", 10), 1, 1_200),
@@ -80,9 +92,13 @@ public final class ConfigService {
                 databasePath,
                 config.getString("gui.title",
                         "<#f7a48d><bold>%category%</bold></#f7a48d> <dark_gray>•</dark_gray> <gray>%page%/%pages%</gray>"),
-                config.getString("gui.date-format", "dd MMM yyyy, HH:mm"),
+                dateFormat,
                 List.copyOf(milestones)
         );
+    }
+
+    public void apply(PluginSettings prepared) {
+        settings = Objects.requireNonNull(prepared);
     }
 
     public PluginSettings settings() {

@@ -115,6 +115,10 @@ mvn package
 
 The Maven package runs the test suite and produces the shaded plugin JAR with its SQLite driver included.
 
+The runnable artifact is `target/EveryBlock-1.0.0.jar`. Packaging does not deploy it
+to a server. Copy that file to your server's `plugins/` directory after the build;
+do not use the `original-` JAR retained by Maven.
+
 ---
 
 <p align="center">

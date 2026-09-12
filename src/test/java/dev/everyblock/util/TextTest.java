@@ -24,6 +24,20 @@ class TextTest {
     }
 
     @Test
+    void formatsPercentOnConcurrentPlaceholderThreads() {
+        java.util.stream.IntStream.range(0, 10_000).parallel().forEach(index -> {
+            int amount = index % 4;
+            String expected = switch (amount) {
+                case 0 -> "0.0";
+                case 1 -> "25.0";
+                case 2 -> "50.0";
+                default -> "75.0";
+            };
+            assertEquals(expected, Text.percent(amount, 4));
+        });
+    }
+
+    @Test
     void escapesPlayerControlledMiniMessage() {
         assertEquals("\\<red>Alex\\</red>", Text.escape("<red>Alex</red>"));
     }

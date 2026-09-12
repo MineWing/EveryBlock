@@ -10,7 +10,6 @@ import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
-import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 
@@ -62,14 +61,15 @@ public final class ItemsCommand implements CommandExecutor, TabCompleter {
             plugin.messages().send(sender, "items-reset-warning");
             return true;
         }
-        try {
-            plugin.itemProgress().reset();
+        plugin.itemProgress().reset().whenComplete((ignored, failure) -> {
+            if (failure != null) {
+                plugin.getLogger().severe("Could not reset item progress: " + failure.getMessage());
+                plugin.messages().send(sender, "database-error");
+                return;
+            }
             plugin.itemGui().refreshOpenMenus();
             plugin.messages().sendAll("items-reset", Map.of("player", Text.escape(sender.getName())));
-        } catch (SQLException exception) {
-            plugin.getLogger().severe("Could not reset item progress: " + exception.getMessage());
-            plugin.messages().send(sender, "database-error");
-        }
+        });
         return true;
     }
 

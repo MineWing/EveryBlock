@@ -22,6 +22,12 @@ public record PluginSettings(
         String dateFormat,
         List<Integer> milestones
 ) {
+    public PluginSettings withDatabasePath(Path path) {
+        return new PluginSettings(participantMode, allowlist, scanIntervalTicks, countCreativeMode,
+                excludedBlocks, excludedPrefixes, includedBlocks, itemsEnabled, excludedItems,
+                excludedItemPrefixes, includedItems, path, guiTitle, dateFormat, milestones);
+    }
+
     public enum ParticipantMode {
         EVERYONE,
         ALLOWLIST
