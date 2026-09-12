@@ -136,14 +136,30 @@ public final class ProgressDatabase implements AutoCloseable {
     }
 
     private void quarantine(String table, String material) throws SQLException {
+        String copySql = switch (table) {
+            case "discoveries" -> """
+                    INSERT INTO invalid_discoveries
+                    SELECT ?, material, player_uuid, player_name, discovered_at
+                    FROM discoveries WHERE material = ?
+                    """;
+            case "item_discoveries" -> """
+                    INSERT INTO invalid_discoveries
+                    SELECT ?, material, player_uuid, player_name, discovered_at
+                    FROM item_discoveries WHERE material = ?
+                    """;
+            default -> throw new IllegalArgumentException("Unknown discovery table: " + table);
+        };
+        String removeSql = switch (table) {
+            case "discoveries" -> "DELETE FROM discoveries WHERE material = ?";
+            case "item_discoveries" -> "DELETE FROM item_discoveries WHERE material = ?";
+            default -> throw new IllegalArgumentException("Unknown discovery table: " + table);
+        };
         try (Statement schema = connection.createStatement()) {
             schema.executeUpdate("CREATE TABLE IF NOT EXISTS invalid_discoveries (source_table TEXT, material TEXT, player_uuid TEXT, player_name TEXT, discovered_at INTEGER)");
         }
         connection.setAutoCommit(false);
-        try (PreparedStatement copy = connection.prepareStatement(
-                     "INSERT INTO invalid_discoveries SELECT ?, material, player_uuid, player_name, discovered_at FROM "
-                             + table + " WHERE material = ?");
-             PreparedStatement remove = connection.prepareStatement("DELETE FROM " + table + " WHERE material = ?")) {
+        try (PreparedStatement copy = connection.prepareStatement(copySql);
+             PreparedStatement remove = connection.prepareStatement(removeSql)) {
             copy.setString(1, table);
             copy.setString(2, material);
             copy.executeUpdate();
