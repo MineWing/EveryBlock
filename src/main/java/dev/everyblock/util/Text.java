@@ -5,11 +5,13 @@ import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 
 import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.util.Locale;
 
 public final class Text {
     private static final MiniMessage MINI_MESSAGE = MiniMessage.miniMessage();
-    private static final DecimalFormat PERCENT = new DecimalFormat("0.0");
+    private static final ThreadLocal<DecimalFormat> PERCENT = ThreadLocal.withInitial(
+            () -> new DecimalFormat("0.0", DecimalFormatSymbols.getInstance(Locale.ROOT)));
     private static volatile String accentColor = "#f7a48d";
 
     private Text() {
@@ -51,7 +53,7 @@ public final class Text {
         if (total <= 0) {
             return "100.0";
         }
-        return PERCENT.format(Math.min(100.0, amount * 100.0 / total));
+        return PERCENT.get().format(Math.min(100.0, amount * 100.0 / total));
     }
 
     public static String progressBar(int amount, int total, int width, String filledColor, String emptyColor) {

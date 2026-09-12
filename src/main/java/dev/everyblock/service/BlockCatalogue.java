@@ -38,8 +38,8 @@ public final class BlockCatalogue {
             "VAULT"
     );
     private final JavaPlugin plugin;
-    private List<Material> blocks = List.of();
-    private Set<Material> blockSet = Set.of();
+    private volatile List<Material> blocks = List.of();
+    private volatile Set<Material> blockSet = Set.of();
 
     public BlockCatalogue(JavaPlugin plugin) {
         this.plugin = plugin;

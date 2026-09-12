@@ -20,8 +20,8 @@ public final class ItemCatalogue {
     );
 
     private final JavaPlugin plugin;
-    private List<Material> items = List.of();
-    private Set<Material> itemSet = Set.of();
+    private volatile List<Material> items = List.of();
+    private volatile Set<Material> itemSet = Set.of();
 
     public ItemCatalogue(JavaPlugin plugin) {
         this.plugin = plugin;

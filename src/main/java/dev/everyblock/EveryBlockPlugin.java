@@ -34,14 +34,19 @@ public final class EveryBlockPlugin extends JavaPlugin {
     private GuiService gui;
     private ItemGuiService itemGui;
     private InventoryTracker tracker;
+    private EveryBlockExpansion expansion;
+    private volatile boolean stopping;
 
     @Override
     public void onEnable() {
+        stopping = false;
         try {
             configService = new ConfigService(this);
-            configService.load();
             messages = new MessageService(this);
-            messages.load();
+            PluginSettings preparedSettings = configService.prepare();
+            var preparedMessages = messages.prepare();
+            configService.apply(preparedSettings);
+            messages.apply(preparedMessages);
             BlockRarity.configure(messages);
             BlockCategory.configure(messages);
             dev.everyblock.util.Text.configureAccent(
@@ -55,12 +60,22 @@ public final class EveryBlockPlugin extends JavaPlugin {
             database.open();
             progress = new ProgressService(database, catalogue, database.load());
             itemProgress = new ItemProgressService(database, itemCatalogue, database.loadItems());
+            database.startWorker(action -> {
+                if (!stopping && isEnabled()) {
+                    getServer().getScheduler().runTask(this, () -> {
+                        if (!stopping && isEnabled()) {
+                            action.run();
+                        }
+                    });
+                }
+            });
             gui = new GuiService(this);
             itemGui = new ItemGuiService(this);
             tracker = new InventoryTracker(this);
 
             getServer().getPluginManager().registerEvents(tracker, this);
             getServer().getPluginManager().registerEvents(new GuiListener(this), this);
+            getServer().getPluginManager().registerEvents(messages, this);
             PluginCommand blocks = java.util.Objects.requireNonNull(getCommand("blocks"));
             BlocksCommand command = new BlocksCommand(this);
             blocks.setExecutor(command);
@@ -72,22 +87,37 @@ public final class EveryBlockPlugin extends JavaPlugin {
 
             tracker.start();
             if (getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")) {
-                new EveryBlockExpansion(this).register();
-                getLogger().info("PlaceholderAPI expansion registered.");
+                expansion = new EveryBlockExpansion(this);
+                if (expansion.register()) {
+                    getLogger().info("PlaceholderAPI expansion registered.");
+                } else {
+                    getLogger().warning("Could not register the PlaceholderAPI expansion.");
+                    expansion = null;
+                }
             }
             getLogger().info("EveryBlock enabled: " + progress.collectedCount() + "/"
                     + progress.totalCount() + " blocks collected.");
         } catch (Exception exception) {
-            getLogger().severe("EveryBlock could not start: " + exception.getMessage());
-            exception.printStackTrace();
+            getLogger().log(java.util.logging.Level.SEVERE, "EveryBlock could not start", exception);
             getServer().getPluginManager().disablePlugin(this);
         }
     }
 
     @Override
     public void onDisable() {
+        stopping = true;
         if (tracker != null) {
             tracker.stop();
+        }
+        if (gui != null) {
+            gui.closeOpenMenus();
+        }
+        if (messages != null) {
+            messages.shutdown();
+        }
+        if (expansion != null) {
+            expansion.unregister();
+            expansion = null;
         }
         if (database != null) {
             try {
@@ -101,11 +131,14 @@ public final class EveryBlockPlugin extends JavaPlugin {
     public boolean reloadPlugin() {
         try {
             java.nio.file.Path originalDatabase = settings().databasePath();
-            configService.load();
-            if (!settings().databasePath().equals(originalDatabase)) {
+            PluginSettings preparedSettings = configService.prepare();
+            var preparedMessages = messages.prepare();
+            if (!preparedSettings.databasePath().equals(originalDatabase)) {
                 getLogger().warning("storage.database-file changes require a full server restart.");
+                preparedSettings = preparedSettings.withDatabasePath(originalDatabase);
             }
-            messages.load();
+            configService.apply(preparedSettings);
+            messages.apply(preparedMessages);
             BlockRarity.configure(messages);
             BlockCategory.configure(messages);
             dev.everyblock.util.Text.configureAccent(
@@ -114,10 +147,10 @@ public final class EveryBlockPlugin extends JavaPlugin {
             itemCatalogue.rebuild(settings());
             tracker.start();
             gui.refreshOpenMenus();
+            itemGui.refreshOpenMenus();
             return true;
         } catch (Exception exception) {
-            getLogger().severe("Reload failed: " + exception.getMessage());
-            exception.printStackTrace();
+            getLogger().log(java.util.logging.Level.SEVERE, "Reload failed", exception);
             return false;
         }
     }

@@ -19,7 +19,6 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitTask;
 
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
@@ -32,6 +31,7 @@ import java.util.Set;
 public final class InventoryTracker implements Listener {
     private final EveryBlockPlugin plugin;
     private BukkitTask task;
+    private boolean running;
 
     public InventoryTracker(EveryBlockPlugin plugin) {
         this.plugin = plugin;
@@ -39,6 +39,7 @@ public final class InventoryTracker implements Listener {
 
     public void start() {
         stop();
+        running = true;
         long interval = plugin.settings().scanIntervalTicks();
         task = plugin.getServer().getScheduler().runTaskTimer(plugin, () ->
                 plugin.getServer().getOnlinePlayers().forEach(this::scan), interval, interval);
@@ -46,6 +47,7 @@ public final class InventoryTracker implements Listener {
     }
 
     public void stop() {
+        running = false;
         if (task != null) {
             task.cancel();
             task = null;
@@ -53,9 +55,6 @@ public final class InventoryTracker implements Listener {
     }
 
     public boolean isParticipant(Player player) {
-        if (!player.hasPermission("everyblock.use")) {
-            return false;
-        }
         PluginSettings settings = plugin.settings();
         return settings.participantMode() == PluginSettings.ParticipantMode.EVERYONE
                 || settings.allowlist().contains(player.getUniqueId());
@@ -68,11 +67,11 @@ public final class InventoryTracker implements Listener {
         Set<Material> candidates = new LinkedHashSet<>();
         Set<Material> itemCandidates = new LinkedHashSet<>();
         for (ItemStack stack : player.getInventory().getContents()) {
-            if (stack != null && !stack.getType().isAir()) {
-                if (plugin.catalogue().contains(stack.getType()) && !plugin.progress().found(stack.getType())) {
+            if (stack != null) {
+                if (player.hasPermission("everyblock.use") && plugin.catalogue().contains(stack.getType()) && !plugin.progress().found(stack.getType())) {
                     candidates.add(stack.getType());
                 }
-                if (plugin.settings().itemsEnabled() && plugin.itemCatalogue().contains(stack.getType())
+                if (player.hasPermission("everyblock.items") && plugin.settings().itemsEnabled() && plugin.itemCatalogue().contains(stack.getType())
                         && !plugin.itemProgress().found(stack.getType())) {
                     itemCandidates.add(stack.getType());
                 }
@@ -87,19 +86,19 @@ public final class InventoryTracker implements Listener {
     }
 
     private void record(Player player, Set<Material> candidates) {
-        int before = plugin.progress().collectedCount();
-        List<Material> found = new ArrayList<>();
-        try {
-            for (Material material : candidates) {
-                if (plugin.progress().discover(material, player.getUniqueId(), player.getName())) {
-                    found.add(material);
-                }
+        plugin.progress().discoverMany(candidates, player.getUniqueId(), player.getName()).whenComplete((saved, failure) -> {
+            if (failure != null) {
+                plugin.getLogger().severe("Could not save block discovery: " + failure.getMessage());
+                if (player.isOnline()) plugin.messages().send(player, "database-error");
+                return;
             }
-        } catch (SQLException exception) {
-            plugin.getLogger().severe("Could not save block discovery: " + exception.getMessage());
-            plugin.messages().send(player, "database-error");
-            return;
-        }
+            announce(player, new ArrayList<>(saved));
+        });
+    }
+
+    private void announce(Player player, List<Material> found) {
+        found.removeIf(material -> !plugin.catalogue().contains(material));
+        int before = plugin.progress().collectedCount() - found.size();
         if (found.isEmpty()) {
             return;
         }
@@ -145,19 +144,22 @@ public final class InventoryTracker implements Listener {
     }
 
     private void recordItems(Player player, Set<Material> candidates) {
-        int before = plugin.itemProgress().collectedCount();
-        List<Material> found = new ArrayList<>();
-        try {
-            for (Material material : candidates) {
-                if (plugin.itemProgress().discover(material, player.getUniqueId(), player.getName())) {
-                    found.add(material);
-                }
+        plugin.itemProgress().discoverMany(candidates, player.getUniqueId(), player.getName()).whenComplete((saved, failure) -> {
+            if (failure != null) {
+                plugin.getLogger().severe("Could not save item discovery: " + failure.getMessage());
+                if (player.isOnline()) plugin.messages().send(player, "database-error");
+                return;
             }
-        } catch (SQLException exception) {
-            plugin.getLogger().severe("Could not save item discovery: " + exception.getMessage());
-            plugin.messages().send(player, "database-error");
+            announceItems(player, new ArrayList<>(saved));
+        });
+    }
+
+    private void announceItems(Player player, List<Material> found) {
+        if (!plugin.settings().itemsEnabled()) {
             return;
         }
+        found.removeIf(material -> !plugin.itemCatalogue().contains(material));
+        int before = plugin.itemProgress().collectedCount() - found.size();
         if (found.isEmpty()) {
             return;
         }
@@ -294,7 +296,14 @@ public final class InventoryTracker implements Listener {
     }
 
     private void scanSoon(Player player) {
-        plugin.getServer().getScheduler().runTask(plugin, () -> scan(player));
+        if (!running || !plugin.isEnabled()) {
+            return;
+        }
+        plugin.getServer().getScheduler().runTask(plugin, () -> {
+            if (running && plugin.isEnabled()) {
+                scan(player);
+            }
+        });
     }
 
     @EventHandler(priority = EventPriority.MONITOR)

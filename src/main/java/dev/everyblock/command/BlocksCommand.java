@@ -13,7 +13,6 @@ import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -124,20 +123,17 @@ public final class BlocksCommand implements CommandExecutor, TabCompleter {
             unknown(sender, String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length)));
             return true;
         }
-        if (plugin.progress().found(material)) {
-            plugin.messages().send(sender, "already-found", Map.of("block", InventoryTracker.display(material)));
-            return true;
-        }
-        try {
-            if (plugin.progress().discover(material, sender instanceof Player player
-                            ? player.getUniqueId() : EveryBlockPlugin.CONSOLE_UUID,
-                    sender.getName())) {
-                plugin.messages().send(sender, "added", Map.of("block", InventoryTracker.display(material)));
-                plugin.gui().refreshOpenMenus();
-            }
-        } catch (SQLException exception) {
-            databaseError(sender, exception);
-        }
+        plugin.progress().add(material, sender instanceof Player player
+                        ? player.getUniqueId() : EveryBlockPlugin.CONSOLE_UUID, sender.getName())
+                .whenComplete((added, failure) -> {
+                    if (failure != null) {
+                        databaseError(sender, failure);
+                        return;
+                    }
+                    plugin.messages().send(sender, added ? "added" : "already-found",
+                            Map.of("block", InventoryTracker.display(material)));
+                    plugin.gui().refreshOpenMenus();
+                });
         return true;
     }
 
@@ -150,17 +146,15 @@ public final class BlocksCommand implements CommandExecutor, TabCompleter {
             unknown(sender, String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length)));
             return true;
         }
-        if (!plugin.progress().found(material)) {
-            plugin.messages().send(sender, "not-found", Map.of("block", InventoryTracker.display(material)));
-            return true;
-        }
-        try {
-            plugin.progress().remove(material);
-            plugin.messages().send(sender, "removed", Map.of("block", InventoryTracker.display(material)));
+        plugin.progress().remove(material).whenComplete((removed, failure) -> {
+            if (failure != null) {
+                databaseError(sender, failure);
+                return;
+            }
+            plugin.messages().send(sender, removed ? "removed" : "not-found",
+                    Map.of("block", InventoryTracker.display(material)));
             plugin.gui().refreshOpenMenus();
-        } catch (SQLException exception) {
-            databaseError(sender, exception);
-        }
+        });
         return true;
     }
 
@@ -172,13 +166,14 @@ public final class BlocksCommand implements CommandExecutor, TabCompleter {
             plugin.messages().send(sender, "reset-warning");
             return true;
         }
-        try {
-            plugin.progress().reset();
+        plugin.progress().reset().whenComplete((ignored, failure) -> {
+            if (failure != null) {
+                databaseError(sender, failure);
+                return;
+            }
             plugin.messages().sendAll("reset-complete", Map.of("player", Text.escape(sender.getName())));
             plugin.gui().refreshOpenMenus();
-        } catch (SQLException exception) {
-            databaseError(sender, exception);
-        }
+        });
         return true;
     }
 
@@ -211,7 +206,7 @@ public final class BlocksCommand implements CommandExecutor, TabCompleter {
         plugin.messages().send(sender, "unknown-block", Map.of("block", Text.escape(input)));
     }
 
-    private void databaseError(CommandSender sender, SQLException exception) {
+    private void databaseError(CommandSender sender, Throwable exception) {
         plugin.getLogger().severe("Could not update block progress: " + exception.getMessage());
         plugin.messages().send(sender, "database-error");
     }

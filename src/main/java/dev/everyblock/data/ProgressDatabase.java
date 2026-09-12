@@ -15,10 +15,61 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 
 public final class ProgressDatabase implements AutoCloseable {
     private final Path path;
     private Connection connection;
+    private ExecutorService worker;
+    private Executor completions;
+
+    // The executor must deliver callbacks in FIFO order on the server thread.
+    public void startWorker(Executor completions) {
+        this.completions = completions;
+        worker = Executors.newSingleThreadExecutor(r -> new Thread(r, "EveryBlock-database"));
+    }
+
+    public <T> CompletableFuture<T> submit(Callable<T> operation) {
+        CompletableFuture<T> future = new CompletableFuture<>();
+        try {
+            worker.execute(() -> {
+                T value;
+                try {
+                    value = operation.call();
+                } catch (Exception failure) {
+                    Logger.getLogger("EveryBlock").log(java.util.logging.Level.SEVERE,
+                            "Database operation failed", failure);
+                    dispatch(() -> future.completeExceptionally(failure));
+                    return;
+                }
+                dispatch(() -> future.complete(value));
+            });
+        } catch (RejectedExecutionException failure) {
+            future.completeExceptionally(failure);
+        }
+        return future;
+    }
+
+    private void dispatch(Runnable completion) {
+        try {
+            completions.execute(completion);
+        } catch (RuntimeException failure) {
+            // During shutdown the scheduler can reject work. Completing the future here
+            // would run its game-state callbacks on this database thread. Persistence has
+            // already finished; leave callbacks undelivered when the server is unavailable.
+            Logger.getLogger("EveryBlock").log(java.util.logging.Level.WARNING,
+                    "Could not deliver database completion to the server thread", failure);
+        }
+    }
 
     public ProgressDatabase(Path path) {
         this.path = path;
@@ -61,6 +112,7 @@ public final class ProgressDatabase implements AutoCloseable {
 
     private Map<Material, Discovery> loadFrom(String table) throws SQLException {
         Map<Material, Discovery> result = new LinkedHashMap<>();
+        List<String> invalid = new ArrayList<>();
         try (Statement statement = connection.createStatement();
              ResultSet rows = statement.executeQuery("SELECT material, player_uuid, player_name, discovered_at FROM " + table)) {
             while (rows.next()) {
@@ -72,12 +124,58 @@ public final class ProgressDatabase implements AutoCloseable {
                     UUID playerId = UUID.fromString(rows.getString("player_uuid"));
                     result.put(material, new Discovery(material, playerId,
                             rows.getString("player_name"), Instant.ofEpochMilli(rows.getLong("discovered_at"))));
-                } catch (IllegalArgumentException ignored) {
-                    // A malformed legacy row is ignored without preventing the plugin from starting.
+                } catch (IllegalArgumentException invalidId) {
+                    invalid.add(rows.getString("material"));
                 }
             }
         }
+        for (String material : invalid) {
+            quarantine(table, material);
+        }
         return result;
+    }
+
+    private void quarantine(String table, String material) throws SQLException {
+        try (Statement schema = connection.createStatement()) {
+            schema.executeUpdate("CREATE TABLE IF NOT EXISTS invalid_discoveries (source_table TEXT, material TEXT, player_uuid TEXT, player_name TEXT, discovered_at INTEGER)");
+        }
+        connection.setAutoCommit(false);
+        try (PreparedStatement copy = connection.prepareStatement(
+                     "INSERT INTO invalid_discoveries SELECT ?, material, player_uuid, player_name, discovered_at FROM "
+                             + table + " WHERE material = ?");
+             PreparedStatement remove = connection.prepareStatement("DELETE FROM " + table + " WHERE material = ?")) {
+            copy.setString(1, table);
+            copy.setString(2, material);
+            copy.executeUpdate();
+            remove.setString(1, material);
+            remove.executeUpdate();
+            connection.commit();
+            Logger.getLogger("EveryBlock").warning("Quarantined malformed discovery in " + table + ": " + material);
+        } catch (SQLException failure) {
+            connection.rollback();
+            throw failure;
+        } finally {
+            connection.setAutoCommit(true);
+        }
+    }
+
+    public List<Discovery> insertBatch(List<Discovery> discoveries, boolean items) throws SQLException {
+        List<Discovery> inserted = new ArrayList<>();
+        connection.setAutoCommit(false);
+        try {
+            for (Discovery discovery : discoveries) {
+                if (insertInto(items ? "item_discoveries" : "discoveries", discovery)) {
+                    inserted.add(discovery);
+                }
+            }
+            connection.commit();
+            return List.copyOf(inserted);
+        } catch (SQLException failure) {
+            connection.rollback();
+            throw failure;
+        } finally {
+            connection.setAutoCommit(true);
+        }
     }
 
     public boolean insert(Discovery discovery) throws SQLException {
@@ -123,6 +221,20 @@ public final class ProgressDatabase implements AutoCloseable {
 
     @Override
     public void close() throws SQLException {
+        if (worker != null) {
+            worker.shutdown();
+            boolean interrupted = false;
+            while (!worker.isTerminated()) {
+                try {
+                    worker.awaitTermination(1, TimeUnit.SECONDS);
+                } catch (InterruptedException exception) {
+                    interrupted = true;
+                }
+            }
+            if (interrupted) {
+                Thread.currentThread().interrupt();
+            }
+        }
         if (connection != null) {
             connection.close();
             connection = null;
