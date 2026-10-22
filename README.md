@@ -49,7 +49,11 @@ The default participant mode is `EVERYONE`. Servers that want a closed team can 
 | `/blocks reload` | Reload configuration and messages | `everyblock.admin` |
 | `/items` | Open the optional item collection | `everyblock.items` |
 | `/items status` | Show item challenge progress | `everyblock.items` |
-| `/items reset confirm` | Reset item progress | `everyblock.admin` |
+| `/items reset confirm` | Reset item progress, even while the item challenge is disabled | `everyblock.admin` |
+
+Admin commands need only `everyblock.admin`; staff do not also need `everyblock.use` or `everyblock.items`.
+
+A block removed with `/blocks remove` is not immediately re-discovered from players who were already holding it. Those players are skipped for that block until they stop holding it; anyone else who picks it up counts as normal.
 
 Aliases include `/everyblock`, `/blockchallenge`, `/blockdex`, `/everyitem`, `/itemchallenge`, and `/itemdex`.
 
@@ -78,7 +82,7 @@ No separate eCloud download is required.
 - PlaceholderAPI 2.12.3 or newer (optional)
 
 1. Build the project with `mvn package`.
-2. Copy the shaded `EveryBlock-*.jar` into the server's `plugins/` directory.
+2. Copy `target/EveryBlock-*.jar` into the server's `plugins/` directory.
 3. Restart Paper.
 4. Open the collection with `/blocks`.
 
@@ -101,7 +105,9 @@ items:
   enabled: false       # Enable the companion Every Item challenge
 ```
 
-`config.yml` controls participants, catalogue exclusions, counting, GUI presentation, storage, and milestones. `messages.yml` contains ordered action lists for chat, broadcasts, sounds, particles, titles, boss bars, and fireworks, plus GUI lore as YAML string lists.
+`config.yml` controls participants, catalogue exclusions, counting, GUI presentation, storage, and milestones. `messages.yml` contains ordered action lists for chat, broadcasts, sounds, particles, titles, boss bars, and fireworks, plus every menu title and GUI lore as YAML string lists.
+
+The block collection title is `gui.block-menu.title` in `messages.yml`, alongside the other menu titles. The older `gui.title` in `config.yml` is deprecated and only used when that key is missing, so existing `messages.yml` files keep their current title.
 
 Changing the database filename requires a full restart. Other supported settings can be refreshed with `/blocks reload`.
 
@@ -113,11 +119,10 @@ cd EveryBlock
 mvn package
 ```
 
-The Maven package runs the test suite and produces the shaded plugin JAR with its SQLite driver included.
+The Maven package runs the test suite and produces the plugin JAR. The SQLite JDBC driver is not bundled: Paper already ships `org.xerial:sqlite-jdbc` on the server classpath, and EveryBlock uses that copy.
 
 The runnable artifact is `target/EveryBlock-1.0.0.jar`. Packaging does not deploy it
-to a server. Copy that file to your server's `plugins/` directory after the build;
-do not use the `original-` JAR retained by Maven.
+to a server. Copy that file to your server's `plugins/` directory after the build.
 
 ---
 
