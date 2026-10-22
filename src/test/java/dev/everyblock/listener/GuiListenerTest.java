@@ -12,6 +12,7 @@ import dev.everyblock.message.MessageService;
 import org.bukkit.Server;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryView;
 import org.bukkit.scheduler.BukkitScheduler;
@@ -19,6 +20,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
+
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -32,6 +37,7 @@ class GuiListenerTest {
     private GuiService gui;
     private ItemGuiService itemGui;
     private GuiListener listener;
+    private final AtomicLong clock = new AtomicLong(1_000_000_000L);
 
     @BeforeEach
     void setUp() {
@@ -51,6 +57,7 @@ class GuiListenerTest {
         view = mock(InventoryView.class);
         event = mock(InventoryClickEvent.class);
         when(player.isOnline()).thenReturn(true);
+        when(player.getUniqueId()).thenReturn(UUID.randomUUID());
         when(player.hasPermission("everyblock.use")).thenReturn(true);
         when(player.hasPermission("everyblock.items")).thenReturn(true);
         when(player.getOpenInventory()).thenReturn(view);
@@ -59,7 +66,7 @@ class GuiListenerTest {
         when(event.getView()).thenReturn(view);
         when(event.getWhoClicked()).thenReturn(player);
         when(event.getRawSlot()).thenReturn(47);
-        listener = new GuiListener(plugin);
+        listener = new GuiListener(plugin, clock::get);
     }
 
     @Test
@@ -120,6 +127,39 @@ class GuiListenerTest {
         listener.onClick(event);
         verify(event).setCancelled(true);
         verifyNoInteractions(scheduler, itemGui, gui);
+    }
+
+    @Test
+    void rapidClicksAreAllCancelledButOnlyOneNavigatesPerCooldown() {
+        when(inventory.getHolder(false)).thenReturn(new BlockGuiHolder(0, BlockFilter.ALL, "", BlockCategory.ALL));
+        listener.onClick(event);
+        clock.addAndGet(GuiListener.CLICK_COOLDOWN_NANOS / 4);
+        listener.onClick(event);
+        listener.onClick(event);
+        verify(event, times(3)).setCancelled(true);
+        verify(scheduler, times(1)).runTask(eq(plugin), any(Runnable.class));
+        clock.addAndGet(GuiListener.CLICK_COOLDOWN_NANOS);
+        listener.onClick(event);
+        verify(scheduler, times(2)).runTask(eq(plugin), any(Runnable.class));
+    }
+
+    @Test
+    void quitClearsCooldown() {
+        when(inventory.getHolder(false)).thenReturn(new BlockGuiHolder(0, BlockFilter.ALL, "", BlockCategory.ALL));
+        listener.onClick(event);
+        PlayerQuitEvent quit = mock(PlayerQuitEvent.class);
+        when(quit.getPlayer()).thenReturn(player);
+        listener.onQuit(quit);
+        listener.onClick(event);
+        verify(scheduler, times(2)).runTask(eq(plugin), any(Runnable.class));
+    }
+
+    @Test
+    void foreignInventoryIsIgnored() {
+        when(inventory.getHolder(false)).thenReturn(mock(org.bukkit.inventory.InventoryHolder.class));
+        listener.onClick(event);
+        verify(event, never()).setCancelled(anyBoolean());
+        verifyNoInteractions(scheduler);
     }
 
     private Runnable queuedNavigation() {
