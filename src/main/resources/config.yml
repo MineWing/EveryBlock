@@ -61,6 +61,7 @@ storage:
   database-file: progress.db
 
 gui:
+  # Deprecated: set gui.block-menu.title in messages.yml; this is only used when that key is missing.
   # Available placeholders: %category%, %page%, %pages%
   title: '<#f7a48d><bold>%category%</bold></#f7a48d> <dark_gray>•</dark_gray> <gray>%page%/%pages%</gray>'
   date-format: 'dd MMM yyyy, HH:mm'

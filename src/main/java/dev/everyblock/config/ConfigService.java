@@ -42,7 +42,7 @@ public final class ConfigService {
         PluginSettings.ParticipantMode mode;
         try {
             mode = PluginSettings.ParticipantMode.valueOf(
-                    config.getString("participants.mode", "EVERYONE").strip().toUpperCase(Locale.ROOT));
+                    string(config, "participants.mode", "EVERYONE").strip().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException exception) {
             throw new IllegalArgumentException("participants.mode must be EVERYONE or ALLOWLIST", exception);
         }
@@ -74,8 +74,13 @@ public final class ConfigService {
         }
         milestones.sort(Integer::compareTo);
 
-        String dateFormat = config.getString("gui.date-format", "dd MMM yyyy, HH:mm");
-        DateTimeFormatter.ofPattern(dateFormat);
+        String dateFormat = string(config, "gui.date-format", "dd MMM yyyy, HH:mm");
+        try {
+            DateTimeFormatter.ofPattern(dateFormat);
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalArgumentException("gui.date-format is not a valid date pattern: "
+                    + exception.getMessage(), exception);
+        }
 
         return new PluginSettings(
                 mode,
@@ -90,7 +95,8 @@ public final class ConfigService {
                 uppercaseList(config.getStringList("items.excluded-prefixes")),
                 uppercaseSet(config.getStringList("items.included")),
                 databasePath,
-                config.getString("gui.title",
+                // Deprecated fallback for messages.yml gui.block-menu.title.
+                string(config, "gui.title",
                         "<#f7a48d><bold>%category%</bold></#f7a48d> <dark_gray>•</dark_gray> <gray>%page%/%pages%</gray>"),
                 dateFormat,
                 List.copyOf(milestones)
@@ -103,6 +109,12 @@ public final class ConfigService {
 
     public PluginSettings settings() {
         return settings;
+    }
+
+    /** An explicitly null value ({@code key: ~}) means "use the default", never null. */
+    private static String string(YamlConfiguration config, String path, String fallback) {
+        String value = config.getString(path, fallback);
+        return value == null ? fallback : value;
     }
 
     private static Set<String> uppercaseSet(List<String> values) {

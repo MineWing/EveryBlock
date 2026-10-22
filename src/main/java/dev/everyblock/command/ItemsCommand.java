@@ -1,6 +1,7 @@
 package dev.everyblock.command;
 
 import dev.everyblock.EveryBlockPlugin;
+import dev.everyblock.data.ProgressDatabase;
 import dev.everyblock.gui.BlockFilter;
 import dev.everyblock.util.Text;
 import org.bukkit.command.Command;
@@ -11,6 +12,7 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 public final class ItemsCommand implements CommandExecutor, TabCompleter {
@@ -23,6 +25,10 @@ public final class ItemsCommand implements CommandExecutor, TabCompleter {
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command,
                              @NotNull String label, String @NotNull [] args) {
+        // Resetting is an admin action: it needs only everyblock.admin and works while items are disabled.
+        if (args.length > 0 && args[0].equalsIgnoreCase("reset")) {
+            return reset(sender, args);
+        }
         if (!sender.hasPermission("everyblock.items")) {
             plugin.messages().send(sender, "no-permission");
             return true;
@@ -40,9 +46,6 @@ public final class ItemsCommand implements CommandExecutor, TabCompleter {
                     "remaining", Integer.toString(Math.max(0, total - found)),
                     "percent", Text.percent(found, total)));
             return true;
-        }
-        if (args.length > 0 && args[0].equalsIgnoreCase("reset")) {
-            return reset(sender, args);
         }
         if (!(sender instanceof Player player)) {
             plugin.messages().send(sender, "player-only");
@@ -63,7 +66,7 @@ public final class ItemsCommand implements CommandExecutor, TabCompleter {
         }
         plugin.itemProgress().reset().whenComplete((ignored, failure) -> {
             if (failure != null) {
-                plugin.getLogger().severe("Could not reset item progress: " + failure.getMessage());
+                plugin.getLogger().severe("Could not reset item progress: " + ProgressDatabase.describe(failure));
                 plugin.messages().send(sender, "database-error");
                 return;
             }
@@ -77,12 +80,18 @@ public final class ItemsCommand implements CommandExecutor, TabCompleter {
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command,
                                       @NotNull String alias, String @NotNull [] args) {
         if (args.length == 1) {
-            return sender.hasPermission("everyblock.admin") ? List.of("status", "reset") : List.of("status");
+            return matching(sender.hasPermission("everyblock.admin")
+                    ? List.of("status", "reset") : List.of("status"), args[0]);
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("reset")
                 && sender.hasPermission("everyblock.admin")) {
-            return List.of("confirm");
+            return matching(List.of("confirm"), args[1]);
         }
         return List.of();
+    }
+
+    private static List<String> matching(List<String> values, String prefix) {
+        String lower = prefix.toLowerCase(Locale.ROOT);
+        return values.stream().filter(value -> value.startsWith(lower)).toList();
     }
 }

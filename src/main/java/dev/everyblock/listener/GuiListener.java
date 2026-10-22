@@ -3,35 +3,48 @@ package dev.everyblock.listener;
 import dev.everyblock.EveryBlockPlugin;
 import dev.everyblock.gui.BlockGuiHolder;
 import dev.everyblock.gui.CategoryGuiHolder;
-import dev.everyblock.gui.RecentGuiHolder;
+import dev.everyblock.gui.EveryBlockMenu;
 import dev.everyblock.gui.ItemGuiHolder;
-import dev.everyblock.gui.RecipeGuiHolder;
+import dev.everyblock.gui.RecentGuiHolder;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+import java.util.function.LongSupplier;
+
 public final class GuiListener implements Listener {
+    static final long CLICK_COOLDOWN_NANOS = 200_000_000L;
+
     private final EveryBlockPlugin plugin;
+    private final LongSupplier clock;
+    private final Map<UUID, Long> lastNavigation = new HashMap<>();
 
     public GuiListener(EveryBlockPlugin plugin) {
+        this(plugin, System::nanoTime);
+    }
+
+    GuiListener(EveryBlockPlugin plugin, LongSupplier clock) {
         this.plugin = plugin;
+        this.clock = clock;
     }
 
     @EventHandler
     public void onClick(InventoryClickEvent event) {
-        Object holder = event.getView().getTopInventory().getHolder(false);
-        if (!(holder instanceof BlockGuiHolder) && !(holder instanceof CategoryGuiHolder)
-                && !(holder instanceof RecentGuiHolder) && !(holder instanceof ItemGuiHolder)
-                && !(holder instanceof RecipeGuiHolder)) {
+        if (!(event.getView().getTopInventory().getHolder(false) instanceof EveryBlockMenu holder)) {
             return;
         }
         event.setCancelled(true);
         if (event.getWhoClicked() instanceof Player player
                 && event.getRawSlot() >= 0
-                && event.getRawSlot() < event.getView().getTopInventory().getSize()) {
+                && event.getRawSlot() < event.getView().getTopInventory().getSize()
+                && claimNavigation(player.getUniqueId())) {
             Inventory expected = event.getView().getTopInventory();
             int rawSlot = event.getRawSlot();
             plugin.getServer().getScheduler().runTask(plugin, () -> {
@@ -64,11 +77,23 @@ public final class GuiListener implements Listener {
 
     @EventHandler
     public void onDrag(InventoryDragEvent event) {
-        Object holder = event.getView().getTopInventory().getHolder(false);
-        if (holder instanceof BlockGuiHolder || holder instanceof CategoryGuiHolder
-                || holder instanceof RecentGuiHolder || holder instanceof ItemGuiHolder
-                || holder instanceof RecipeGuiHolder) {
+        if (event.getView().getTopInventory().getHolder(false) instanceof EveryBlockMenu) {
             event.setCancelled(true);
         }
+    }
+
+    @EventHandler
+    public void onQuit(PlayerQuitEvent event) {
+        lastNavigation.remove(event.getPlayer().getUniqueId());
+    }
+
+    private boolean claimNavigation(UUID playerId) {
+        long now = clock.getAsLong();
+        Long last = lastNavigation.get(playerId);
+        if (last != null && now - last < CLICK_COOLDOWN_NANOS) {
+            return false;
+        }
+        lastNavigation.put(playerId, now);
+        return true;
     }
 }

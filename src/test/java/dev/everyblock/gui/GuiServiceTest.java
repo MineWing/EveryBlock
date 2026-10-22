@@ -10,14 +10,18 @@ import dev.everyblock.service.ProgressService;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.Server;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.plugin.Plugin;
+import org.bukkit.scheduler.BukkitScheduler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 
@@ -33,6 +37,8 @@ class GuiServiceTest {
     private Player player;
     private InventoryView view;
     private Inventory current;
+    private MessageService messages;
+    private BukkitScheduler scheduler;
     private final List<InventoryHolder> rendered = new ArrayList<>();
 
     @BeforeEach
@@ -42,7 +48,7 @@ class GuiServiceTest {
         when(plugin.settings()).thenReturn(settings);
         when(settings.guiTitle()).thenReturn("Blocks");
         when(settings.itemsEnabled()).thenReturn(true);
-        MessageService messages = mock(MessageService.class);
+        messages = mock(MessageService.class);
         when(plugin.messages()).thenReturn(messages);
         when(messages.text(anyString())).thenReturn(Component.empty());
         when(messages.text(anyString(), anyMap())).thenReturn(Component.empty());
@@ -54,6 +60,14 @@ class GuiServiceTest {
         when(plugin.progress()).thenReturn(mock(ProgressService.class));
         when(plugin.itemCatalogue()).thenReturn(mock(ItemCatalogue.class));
         when(plugin.itemProgress()).thenReturn(mock(ItemProgressService.class));
+        Server server = mock(Server.class);
+        scheduler = mock(BukkitScheduler.class);
+        when(plugin.getServer()).thenReturn(server);
+        when(server.getScheduler()).thenReturn(scheduler);
+        when(scheduler.runTaskLater(any(Plugin.class), any(Runnable.class), anyLong())).thenAnswer(call -> {
+            call.<Runnable>getArgument(1).run();
+            return null;
+        });
         player = mock(Player.class);
         view = mock(InventoryView.class);
         current = mock(Inventory.class);
@@ -144,6 +158,108 @@ class GuiServiceTest {
             gui.closeOpenMenus();
             verify(player, times(holders.size())).closeInventory();
         }
+    }
+
+    @Test
+    void refreshBurstsCoalesceIntoOneScheduledPass() {
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
+             MockedConstruction<ItemStack> stacks = mockItems()) {
+            stubInventories(bukkit);
+            reset(scheduler);
+            GuiService gui = new GuiService(plugin);
+            gui.openCategories(player);
+            int opened = rendered.size();
+            gui.refreshOpenMenus();
+            gui.refreshOpenMenus();
+            gui.refreshOpenMenus();
+            ArgumentCaptor<Runnable> task = ArgumentCaptor.forClass(Runnable.class);
+            verify(scheduler).runTaskLater(eq(plugin), task.capture(), eq(1L));
+            assertEquals(opened, rendered.size());
+            task.getValue().run();
+            assertEquals(opened + 1, rendered.size());
+            assertInstanceOf(CategoryGuiHolder.class, current.getHolder(false));
+            gui.refreshOpenMenus();
+            ArgumentCaptor<Long> delay = ArgumentCaptor.forClass(Long.class);
+            verify(scheduler, times(2)).runTaskLater(eq(plugin), any(Runnable.class), delay.capture());
+            assertTrue(delay.getValue() > 1, "a refresh right after another waits for the interval");
+        }
+    }
+
+    @Test
+    void catalogueRebuildInvalidatesCachedOrdering() {
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
+             MockedConstruction<ItemStack> stacks = mockItems()) {
+            stubInventories(bukkit);
+            GuiService gui = new GuiService(plugin);
+            when(plugin.catalogue().blocks()).thenReturn(List.of(Material.STONE));
+            gui.open(player, 0, BlockFilter.ALL, "");
+            verify(current).setItem(eq(0), any(ItemStack.class));
+            verify(current, never()).setItem(eq(1), any(ItemStack.class));
+            when(plugin.catalogue().blocks()).thenReturn(List.of(Material.STONE, Material.DIRT));
+            gui.open(player, 0, BlockFilter.ALL, "");
+            verify(current).setItem(eq(1), any(ItemStack.class));
+            gui.open(player, 0, BlockFilter.ALL, "dirt");
+            verify(current).setItem(eq(0), any(ItemStack.class));
+            verify(current, never()).setItem(eq(1), any(ItemStack.class));
+        }
+    }
+
+    @Test
+    void blockMenuTitlePrefersMessagesAndFallsBackToConfig() {
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
+             MockedConstruction<ItemStack> stacks = mockItems()) {
+            stubInventories(bukkit);
+            GuiService gui = new GuiService(plugin);
+            gui.open(player, 0, BlockFilter.ALL, "");
+            verify(messages).applyPlaceholders(eq("Blocks"), anyMap());
+            clearInvocations(messages);
+            when(messages.string(eq("gui.block-menu.title"), anyMap(), isNull())).thenReturn("Blocks %page%");
+            gui.open(player, 0, BlockFilter.ALL, "");
+            verify(messages).string(eq("gui.block-menu.title"),
+                    argThat(values -> "1".equals(values.get("page")) && "1".equals(values.get("pages"))
+                            && "ALL BLOCKS".equals(values.get("category"))), isNull());
+            verify(messages, never()).applyPlaceholders(anyString(), anyMap());
+        }
+    }
+
+    @Test
+    void recentPreviousIgnoresFillerAndTurnsPageWithPageSound() {
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
+             MockedConstruction<ItemStack> stacks = mockItems()) {
+            stubInventories(bukkit);
+            GuiService gui = new GuiService(plugin);
+            gui.handleRecentClick(player, 45, new RecentGuiHolder(0));
+            verify(player, never()).openInventory(any(Inventory.class));
+            verify(messages, never()).send(any(), anyString());
+            stubArrow(45);
+            gui.handleRecentClick(player, 45, new RecentGuiHolder(1));
+            assertInstanceOf(RecentGuiHolder.class, current.getHolder(false));
+            verify(messages).send(player, "gui-next-page");
+            verify(messages, never()).send(player, "gui-open");
+        }
+    }
+
+    @Test
+    void itemPreviousIgnoresFillerAndTurnsPageWithPageSound() {
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class);
+             MockedConstruction<ItemStack> stacks = mockItems()) {
+            stubInventories(bukkit);
+            ItemGuiService gui = new ItemGuiService(plugin);
+            gui.handleClick(player, 45, new ItemGuiHolder(0, BlockFilter.ALL));
+            verify(player, never()).openInventory(any(Inventory.class));
+            verify(messages, never()).send(any(), anyString());
+            stubArrow(45);
+            gui.handleClick(player, 45, new ItemGuiHolder(1, BlockFilter.ALL));
+            assertInstanceOf(ItemGuiHolder.class, current.getHolder(false));
+            verify(messages).send(player, "gui-next-page");
+            verify(messages, never()).send(player, "gui-open");
+        }
+    }
+
+    private void stubArrow(int slot) {
+        ItemStack arrow = mock(ItemStack.class);
+        when(arrow.getType()).thenReturn(Material.ARROW);
+        when(current.getItem(slot)).thenReturn(arrow);
     }
 
     private MockedConstruction<ItemStack> mockItems() {

@@ -73,10 +73,12 @@ public final class BlockCatalogue {
             }
         }
 
-        blocks = selected.stream()
+        List<Material> sorted = selected.stream()
                 .sorted(Comparator.comparing(material -> Text.pretty(material.name())))
                 .toList();
-        blockSet = Set.copyOf(blocks);
+        // Publish the set first: readers that observe the new list must also observe its set.
+        blockSet = Set.copyOf(sorted);
+        blocks = sorted;
         if (plugin != null) {
             plugin.getLogger().info("Every Block catalogue contains " + blocks.size() + " obtainable block items.");
         }

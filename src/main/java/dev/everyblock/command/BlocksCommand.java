@@ -1,6 +1,7 @@
 package dev.everyblock.command;
 
 import dev.everyblock.EveryBlockPlugin;
+import dev.everyblock.data.ProgressDatabase;
 import dev.everyblock.gui.BlockFilter;
 import dev.everyblock.listener.InventoryTracker;
 import dev.everyblock.model.Contributor;
@@ -17,8 +18,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 public final class BlocksCommand implements CommandExecutor, TabCompleter {
+    private static final Set<String> ADMIN_SUBCOMMANDS = Set.of("add", "remove", "reset", "reload");
+
     private final EveryBlockPlugin plugin;
 
     public BlocksCommand(EveryBlockPlugin plugin) {
@@ -28,7 +32,9 @@ public final class BlocksCommand implements CommandExecutor, TabCompleter {
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command,
                              @NotNull String label, String @NotNull [] args) {
-        if (!sender.hasPermission("everyblock.use")) {
+        // Admin subcommands are gated on everyblock.admin alone (checked in each handler).
+        boolean adminSubcommand = args.length > 0 && ADMIN_SUBCOMMANDS.contains(args[0].toLowerCase(Locale.ROOT));
+        if (!adminSubcommand && !sender.hasPermission("everyblock.use")) {
             plugin.messages().send(sender, "no-permission");
             return true;
         }
@@ -132,6 +138,11 @@ public final class BlocksCommand implements CommandExecutor, TabCompleter {
                     }
                     plugin.messages().send(sender, added ? "added" : "already-found",
                             Map.of("block", InventoryTracker.display(material)));
+                    if (added) {
+                        int after = plugin.progress().collectedCount();
+                        plugin.tracker().progressChanged(after - 1, after, plugin.progress().totalCount(),
+                                sender.getName(), material);
+                    }
                     plugin.gui().refreshOpenMenus();
                 });
         return true;
@@ -150,6 +161,10 @@ public final class BlocksCommand implements CommandExecutor, TabCompleter {
             if (failure != null) {
                 databaseError(sender, failure);
                 return;
+            }
+            if (removed) {
+                // Without this, the next scan would immediately re-discover it from whoever holds it.
+                plugin.tracker().suppressHolders(material);
             }
             plugin.messages().send(sender, removed ? "removed" : "not-found",
                     Map.of("block", InventoryTracker.display(material)));
@@ -171,6 +186,7 @@ public final class BlocksCommand implements CommandExecutor, TabCompleter {
                 databaseError(sender, failure);
                 return;
             }
+            plugin.tracker().clearSuppressions();
             plugin.messages().sendAll("reset-complete", Map.of("player", Text.escape(sender.getName())));
             plugin.gui().refreshOpenMenus();
         });
@@ -207,7 +223,7 @@ public final class BlocksCommand implements CommandExecutor, TabCompleter {
     }
 
     private void databaseError(CommandSender sender, Throwable exception) {
-        plugin.getLogger().severe("Could not update block progress: " + exception.getMessage());
+        plugin.getLogger().severe("Could not update block progress: " + ProgressDatabase.describe(exception));
         plugin.messages().send(sender, "database-error");
     }
 
@@ -225,15 +241,23 @@ public final class BlocksCommand implements CommandExecutor, TabCompleter {
     @Override
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command,
                                       @NotNull String alias, String @NotNull [] args) {
+        boolean player = sender.hasPermission("everyblock.use");
+        boolean admin = sender.hasPermission("everyblock.admin");
         if (args.length == 1) {
-            List<String> values = new ArrayList<>(List.of("help", "status", "gui", "search", "top"));
-            if (sender.hasPermission("everyblock.admin")) {
+            List<String> values = new ArrayList<>();
+            if (player) {
+                values.addAll(List.of("help", "status", "gui", "search", "top"));
+            }
+            if (admin) {
                 values.addAll(List.of("add", "remove", "reset", "reload"));
             }
             return matching(values, args[0]);
         }
-        if (args.length == 2 && args[0].equalsIgnoreCase("gui")) {
+        if (args.length == 2 && player && args[0].equalsIgnoreCase("gui")) {
             return matching(List.of("all", "missing", "found"), args[1]);
+        }
+        if (!admin) {
+            return List.of();
         }
         if (args.length == 2 && (args[0].equalsIgnoreCase("add") || args[0].equalsIgnoreCase("remove"))) {
             return matching(plugin.catalogue().blocks().stream()
