@@ -2,11 +2,14 @@ package dev.everyblock.hook;
 
 import dev.everyblock.EveryBlockPlugin;
 import dev.everyblock.model.Discovery;
+import dev.everyblock.service.ProgressService;
 import dev.everyblock.util.Text;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import org.bukkit.OfflinePlayer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.Locale;
 
 public final class EveryBlockExpansion extends PlaceholderExpansion {
     private final EveryBlockPlugin plugin;
@@ -37,18 +40,18 @@ public final class EveryBlockExpansion extends PlaceholderExpansion {
 
     @Override
     public @Nullable String onRequest(OfflinePlayer player, @NotNull String params) {
-        int collected = plugin.progress().collectedCount();
-        int total = plugin.progress().totalCount();
-        return switch (params.toLowerCase(java.util.Locale.ROOT)) {
-            case "collected" -> Integer.toString(collected);
-            case "total" -> Integer.toString(total);
-            case "remaining" -> Integer.toString(Math.max(0, total - collected));
-            case "percent" -> Text.percent(collected, total);
+        // PlaceholderAPI may call this off the server thread; ProgressService reads are snapshot-based.
+        ProgressService progress = plugin.progress();
+        return switch (params.toLowerCase(Locale.ROOT)) {
+            case "collected" -> Integer.toString(progress.collectedCount());
+            case "total" -> Integer.toString(progress.totalCount());
+            case "remaining" -> Integer.toString(progress.remainingCount());
+            case "percent" -> Text.percent(progress.collectedCount(), progress.totalCount());
             case "contribution" -> player == null ? "0"
-                    : Integer.toString(plugin.progress().contribution(player.getUniqueId()));
-            case "latest" -> plugin.progress().latest().map(Discovery::material)
+                    : Integer.toString(progress.contribution(player.getUniqueId()));
+            case "latest" -> progress.latest().map(Discovery::material)
                     .map(material -> Text.pretty(material.name())).orElse("None");
-            case "latest_player" -> plugin.progress().latest().map(Discovery::playerName).orElse("None");
+            case "latest_player" -> progress.latest().map(Discovery::playerName).orElse("None");
             default -> null;
         };
     }
