@@ -27,7 +27,8 @@ public enum BlockCategory {
             "TORCHFLOWER", PLANTS,
             "FLOWER_POT", FUNCTIONAL,
             "MOSS_CARPET", PLANTS,
-            "PALE_MOSS_CARPET", PLANTS
+            "PALE_MOSS_CARPET", PLANTS,
+            "MANGROVE_PROPAGULE", PLANTS
     );
     private static final List<String> WOOD_PREFIXES = List.of(
             "OAK_", "SPRUCE_", "BIRCH_", "JUNGLE_", "ACACIA_", "DARK_OAK_",
@@ -65,7 +66,10 @@ public enum BlockCategory {
             "VINE", "CACTUS", "SUGAR_CANE", "BAMBOO", "MUSHROOM", "FUNGUS", "ROOTS",
             "CORAL", "KELP", "SEAGRASS", "LILY", "DRIPLEAF", "MOSS", "SPONGE",
             "PUMPKIN", "MELON", "HAY_BLOCK", "WHEAT", "CAKE",
-            "COCOA", "PITCHER", "SPORE_BLOSSOM", "HANGING_ROOTS"
+            "COCOA", "PITCHER", "SPORE_BLOSSOM", "HANGING_ROOTS", "POPPY", "FERN",
+            "SHORT_GRASS", "TALL_GRASS", "DRY_GRASS", "BUSH", "ALLIUM", "AZURE_BLUET",
+            "DAISY", "LILAC", "PEONY", "PETALS", "LEAF_LITTER", "EYEBLOSSOM",
+            "SEA_PICKLE", "LICHEN"
     );
     private static final List<String> TERRAIN_WORDS = List.of(
             "DIRT", "GRASS_BLOCK", "PODZOL", "MYCELIUM", "SAND", "GRAVEL", "CLAY",
@@ -153,6 +157,17 @@ public enum BlockCategory {
         if (WOOD_PREFIXES.stream().anyMatch(name::startsWith)
                 || name.endsWith("_LOG") || name.endsWith("_WOOD") || name.endsWith("_PLANKS")) {
             return WOOD;
+        }
+        if (name.contains("COPPER")) {
+            if (name.contains("TORCH") || name.contains("LANTERN") || name.contains("BULB")) {
+                return GLASS_LIGHT;
+            }
+            if (name.contains("CHEST")) {
+                return FUNCTIONAL;
+            }
+            if (name.contains("GOLEM_STATUE")) {
+                return MISC;
+            }
         }
         if (contains(name, ORE_WORDS)) {
             return ORES;

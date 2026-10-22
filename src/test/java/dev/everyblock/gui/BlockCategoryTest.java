@@ -84,6 +84,36 @@ class BlockCategoryTest {
         assertEquals(expected, BlockCategory.ofName(name));
     }
 
+    @ParameterizedTest
+    @CsvSource({
+            "POPPY, PLANTS",
+            "FERN, PLANTS",
+            "LARGE_FERN, PLANTS",
+            "SHORT_GRASS, PLANTS",
+            "TALL_GRASS, PLANTS",
+            "DEAD_BUSH, PLANTS",
+            "ROSE_BUSH, PLANTS",
+            "ALLIUM, PLANTS",
+            "AZURE_BLUET, PLANTS",
+            "OXEYE_DAISY, PLANTS",
+            "LILAC, PLANTS",
+            "PEONY, PLANTS",
+            "PINK_PETALS, PLANTS",
+            "SEA_PICKLE, PLANTS",
+            "GLOW_LICHEN, PLANTS",
+            "MANGROVE_PROPAGULE, PLANTS",
+            "GRASS_BLOCK, TERRAIN",
+            "COPPER_TORCH, GLASS_LIGHT",
+            "COPPER_LANTERN, GLASS_LIGHT",
+            "WAXED_OXIDIZED_COPPER_BULB, GLASS_LIGHT",
+            "COPPER_CHEST, FUNCTIONAL",
+            "COPPER_BLOCK, ORES",
+            "WEATHERED_CUT_COPPER_STAIRS, ORES"
+    })
+    void placesPlantsAndCopperFixturesInTheirFamilies(String name, BlockCategory expected) {
+        assertEquals(expected, BlockCategory.ofName(name));
+    }
+
     @Test
     void memoisedLookupMatchesClassification() {
         for (Material material : Material.values()) {
