@@ -7,6 +7,7 @@ import java.util.EnumMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReferenceArray;
 
 public enum BlockRarity {
     COMMON("ᴄᴏᴍᴍᴏɴ", "white"),
@@ -62,7 +63,7 @@ public enum BlockRarity {
         this.defaultColor = defaultColor;
     }
 
-    /** Pulls labels and colors from messages.yml (gui.rarities.*, colors.rarity-*). */
+    /** Pulls labels and colors from messages.yml ({@code gui.rarities.<tier>.label} and {@code .color}). */
     public static void configure(MessageService messages) {
         Map<BlockRarity, String> labelMap = new EnumMap<>(BlockRarity.class);
         Map<BlockRarity, String> colorMap = new EnumMap<>(BlockRarity.class);
@@ -90,7 +91,12 @@ public enum BlockRarity {
     }
 
     public static BlockRarity of(Material material) {
-        return ofName(material.name());
+        BlockRarity cached = Cache.BY_ORDINAL.get(material.ordinal());
+        if (cached == null) {
+            cached = ofName(material.name());
+            Cache.BY_ORDINAL.set(material.ordinal(), cached);
+        }
+        return cached;
     }
 
     static BlockRarity ofName(String name) {
@@ -99,6 +105,10 @@ public enum BlockRarity {
         }
         if (EPIC_BLOCKS.contains(name)) {
             return EPIC;
+        }
+        if (name.startsWith("DEEPSLATE_") && name.endsWith("_ORE")) {
+            BlockRarity stoneVariant = ofName(name.substring("DEEPSLATE_".length()));
+            return stoneVariant.compareTo(UNCOMMON) > 0 ? stoneVariant : UNCOMMON;
         }
         if (RARE_BLOCKS.contains(name)
                 || name.endsWith("_CORAL_BLOCK")
@@ -125,5 +135,10 @@ public enum BlockRarity {
             return UNCOMMON;
         }
         return COMMON;
+    }
+
+    private static final class Cache {
+        private static final AtomicReferenceArray<BlockRarity> BY_ORDINAL =
+                new AtomicReferenceArray<>(Material.values().length);
     }
 }

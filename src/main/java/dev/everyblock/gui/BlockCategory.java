@@ -6,6 +6,7 @@ import org.bukkit.Material;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReferenceArray;
 
 public enum BlockCategory {
     ALL(Material.NETHER_STAR, "All Blocks", "Every block in the challenge"),
@@ -22,6 +23,12 @@ public enum BlockCategory {
     END(Material.END_STONE, "The End", "Blocks originating in the End"),
     MISC(Material.DRAGON_EGG, "Special & Misc", "Unique blocks that belong nowhere else");
 
+    private static final Map<String, BlockCategory> EXACT = Map.of(
+            "TORCHFLOWER", PLANTS,
+            "FLOWER_POT", FUNCTIONAL,
+            "MOSS_CARPET", PLANTS,
+            "PALE_MOSS_CARPET", PLANTS
+    );
     private static final List<String> WOOD_PREFIXES = List.of(
             "OAK_", "SPRUCE_", "BIRCH_", "JUNGLE_", "ACACIA_", "DARK_OAK_",
             "MANGROVE_", "CHERRY_", "PALE_OAK_", "BAMBOO_"
@@ -57,17 +64,20 @@ public enum BlockCategory {
             "LEAVES", "SAPLING", "FLOWER", "TULIP", "ORCHID", "DANDELION", "AZALEA",
             "VINE", "CACTUS", "SUGAR_CANE", "BAMBOO", "MUSHROOM", "FUNGUS", "ROOTS",
             "CORAL", "KELP", "SEAGRASS", "LILY", "DRIPLEAF", "MOSS", "SPONGE",
-            "PUMPKIN", "MELON", "HAY_BLOCK", "NETHER_WART", "WHEAT", "CAKE",
-            "COCOA", "PITCHER", "TORCHFLOWER", "SPORE_BLOSSOM", "HANGING_ROOTS"
+            "PUMPKIN", "MELON", "HAY_BLOCK", "WHEAT", "CAKE",
+            "COCOA", "PITCHER", "SPORE_BLOSSOM", "HANGING_ROOTS"
     );
     private static final List<String> TERRAIN_WORDS = List.of(
             "DIRT", "GRASS_BLOCK", "PODZOL", "MYCELIUM", "SAND", "GRAVEL", "CLAY",
             "MUD", "SNOW", "ICE", "PACKED_ICE", "BLUE_ICE", "SCULK", "DRIPSTONE",
             "CALCITE", "ROOTED_DIRT"
     );
+    private static final List<String> MASONRY_WORDS = List.of(
+            "SANDSTONE", "MUD_BRICK", "MOSSY_"
+    );
     private static final List<String> STONE_WORDS = List.of(
             "STONE", "COBBLE", "BRICK", "DEEPSLATE", "TUFF", "GRANITE", "DIORITE",
-            "ANDESITE", "SANDSTONE", "PRISMARINE", "PURPUR", "QUARTZ", "SLATE",
+            "ANDESITE", "PRISMARINE", "QUARTZ", "SLATE",
             "BRICKS", "CHISELED", "POLISHED"
     );
     private static final List<String> FUNCTIONAL_WORDS = List.of(
@@ -76,7 +86,7 @@ public enum BlockCategory {
             "COMPOSTER", "LOOM", "CARTOGRAPHY_TABLE", "FLETCHING_TABLE", "SMITHING_TABLE",
             "STONECUTTER", "GRINDSTONE", "LECTERN", "BOOKSHELF", "JUKEBOX", "BEEHIVE",
             "BEE_NEST", "CAMPFIRE", "BELL", "LADDER", "SCAFFOLDING", "CONDUIT",
-            "DECORATED_POT", "FLOWER_POT", "ENDER_CHEST"
+            "DECORATED_POT", "ENDER_CHEST"
     );
 
     private final Material icon;
@@ -118,15 +128,27 @@ public enum BlockCategory {
     }
 
     public static BlockCategory of(Material material) {
-        return ofName(material.name());
+        BlockCategory cached = Cache.BY_ORDINAL.get(material.ordinal());
+        if (cached == null) {
+            cached = ofName(material.name());
+            Cache.BY_ORDINAL.set(material.ordinal(), cached);
+        }
+        return cached;
     }
 
     static BlockCategory ofName(String name) {
+        BlockCategory exact = EXACT.get(name);
+        if (exact != null) {
+            return exact;
+        }
         if (contains(name, NETHER_WORDS)) {
             return NETHER;
         }
         if (contains(name, END_WORDS)) {
             return END;
+        }
+        if (name.endsWith("_LEAVES") || name.endsWith("_SAPLING")) {
+            return PLANTS;
         }
         if (WOOD_PREFIXES.stream().anyMatch(name::startsWith)
                 || name.endsWith("_LOG") || name.endsWith("_WOOD") || name.endsWith("_PLANKS")) {
@@ -143,6 +165,9 @@ public enum BlockCategory {
         }
         if (contains(name, GLASS_LIGHT_WORDS)) {
             return GLASS_LIGHT;
+        }
+        if (contains(name, MASONRY_WORDS)) {
+            return STONE;
         }
         if (contains(name, PLANT_WORDS)) {
             return PLANTS;
@@ -161,5 +186,10 @@ public enum BlockCategory {
 
     private static boolean contains(String name, List<String> needles) {
         return needles.stream().anyMatch(name::contains);
+    }
+
+    private static final class Cache {
+        private static final AtomicReferenceArray<BlockCategory> BY_ORDINAL =
+                new AtomicReferenceArray<>(Material.values().length);
     }
 }
