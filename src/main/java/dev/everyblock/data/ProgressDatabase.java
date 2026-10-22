@@ -11,6 +11,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -19,23 +20,58 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public final class ProgressDatabase implements AutoCloseable {
+    private static final Duration DEFAULT_CLOSE_TIMEOUT = Duration.ofSeconds(10);
+
     private final Path path;
+    private final Logger logger;
+    private Duration closeTimeout = DEFAULT_CLOSE_TIMEOUT;
     private Connection connection;
     private ExecutorService worker;
     private Executor completions;
 
+    public ProgressDatabase(Path path) {
+        this(path, Logger.getLogger("EveryBlock"));
+    }
+
+    public ProgressDatabase(Path path, Logger logger) {
+        this.path = path;
+        this.logger = logger;
+    }
+
     // The executor must deliver callbacks in FIFO order on the server thread.
     public void startWorker(Executor completions) {
         this.completions = completions;
-        worker = Executors.newSingleThreadExecutor(r -> new Thread(r, "EveryBlock-database"));
+        worker = Executors.newSingleThreadExecutor(r -> {
+            Thread thread = new Thread(r, "EveryBlock-database");
+            // A stuck write must never keep the JVM alive after the server has stopped.
+            thread.setDaemon(true);
+            return thread;
+        });
+    }
+
+    void closeTimeout(Duration timeout) {
+        this.closeTimeout = timeout;
+    }
+
+    /** Describes a database failure for logs and players, unwrapping future wrappers. */
+    public static String describe(Throwable failure) {
+        Throwable cause = failure;
+        while ((cause instanceof CompletionException || cause instanceof ExecutionException)
+                && cause.getCause() != null) {
+            cause = cause.getCause();
+        }
+        return cause.getMessage() == null ? cause.getClass().getSimpleName() : cause.getMessage();
     }
 
     public <T> CompletableFuture<T> submit(Callable<T> operation) {
@@ -46,8 +82,7 @@ public final class ProgressDatabase implements AutoCloseable {
                 try {
                     value = operation.call();
                 } catch (Exception failure) {
-                    Logger.getLogger("EveryBlock").log(java.util.logging.Level.SEVERE,
-                            "Database operation failed", failure);
+                    logger.log(Level.SEVERE, "Database operation failed", failure);
                     dispatch(() -> future.completeExceptionally(failure));
                     return;
                 }
@@ -66,13 +101,8 @@ public final class ProgressDatabase implements AutoCloseable {
             // During shutdown the scheduler can reject work. Completing the future here
             // would run its game-state callbacks on this database thread. Persistence has
             // already finished; leave callbacks undelivered when the server is unavailable.
-            Logger.getLogger("EveryBlock").log(java.util.logging.Level.WARNING,
-                    "Could not deliver database completion to the server thread", failure);
+            logger.log(Level.WARNING, "Could not deliver database completion to the server thread", failure);
         }
-    }
-
-    public ProgressDatabase(Path path) {
-        this.path = path;
     }
 
     public void open() throws Exception {
@@ -116,23 +146,36 @@ public final class ProgressDatabase implements AutoCloseable {
         try (Statement statement = connection.createStatement();
              ResultSet rows = statement.executeQuery("SELECT material, player_uuid, player_name, discovered_at FROM " + table)) {
             while (rows.next()) {
-                Material material = Material.matchMaterial(rows.getString("material"));
+                String materialName = rows.getString("material");
+                Material material = materialName == null ? null : Material.matchMaterial(materialName);
                 if (material == null) {
                     continue;
                 }
-                try {
-                    UUID playerId = UUID.fromString(rows.getString("player_uuid"));
-                    result.put(material, new Discovery(material, playerId,
-                            rows.getString("player_name"), Instant.ofEpochMilli(rows.getLong("discovered_at"))));
-                } catch (IllegalArgumentException invalidId) {
-                    invalid.add(rows.getString("material"));
+                UUID playerId = parseUuid(rows.getString("player_uuid"));
+                String playerName = rows.getString("player_name");
+                if (playerId == null || playerName == null) {
+                    invalid.add(materialName);
+                    continue;
                 }
+                result.put(material, new Discovery(material, playerId, playerName,
+                        Instant.ofEpochMilli(rows.getLong("discovered_at"))));
             }
         }
         for (String material : invalid) {
             quarantine(table, material);
         }
         return result;
+    }
+
+    private static UUID parseUuid(String value) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            return UUID.fromString(value);
+        } catch (IllegalArgumentException invalid) {
+            return null;
+        }
     }
 
     private void quarantine(String table, String material) throws SQLException {
@@ -166,7 +209,7 @@ public final class ProgressDatabase implements AutoCloseable {
             remove.setString(1, material);
             remove.executeUpdate();
             connection.commit();
-            Logger.getLogger("EveryBlock").warning("Quarantined malformed discovery in " + table + ": " + material);
+            logger.warning("Quarantined malformed discovery in " + table + ": " + material);
         } catch (SQLException failure) {
             connection.rollback();
             throw failure;
@@ -240,12 +283,22 @@ public final class ProgressDatabase implements AutoCloseable {
         if (worker != null) {
             worker.shutdown();
             boolean interrupted = false;
+            long deadline = System.nanoTime() + closeTimeout.toNanos();
             while (!worker.isTerminated()) {
+                long remaining = deadline - System.nanoTime();
+                if (remaining <= 0) {
+                    break;
+                }
                 try {
-                    worker.awaitTermination(1, TimeUnit.SECONDS);
+                    worker.awaitTermination(remaining, TimeUnit.NANOSECONDS);
                 } catch (InterruptedException exception) {
                     interrupted = true;
                 }
+            }
+            if (!worker.isTerminated()) {
+                logger.warning("Database writes did not finish within " + closeTimeout.toSeconds()
+                        + " seconds; abandoning the remaining queue.");
+                worker.shutdownNow();
             }
             if (interrupted) {
                 Thread.currentThread().interrupt();
