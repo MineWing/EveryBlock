@@ -10,6 +10,8 @@ import dev.everyblock.listener.InventoryTracker;
 import dev.everyblock.message.MessageService;
 import dev.everyblock.service.BlockCatalogue;
 import dev.everyblock.service.ItemCatalogue;
+import dev.everyblock.service.ItemProgressService;
+import dev.everyblock.service.ProgressService;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.Material;
 import org.bukkit.Server;
@@ -42,6 +44,8 @@ class EveryBlockPluginTest {
     private InventoryTracker tracker;
     private BlockCatalogue blocks;
     private ItemCatalogue items;
+    private ProgressService progress;
+    private ItemProgressService itemProgress;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -65,6 +69,10 @@ class EveryBlockPluginTest {
         field("tracker", tracker);
         field("catalogue", blocks);
         field("itemCatalogue", items);
+        progress = mock(ProgressService.class);
+        itemProgress = mock(ItemProgressService.class);
+        field("progress", progress);
+        field("itemProgress", itemProgress);
         when(config.settings()).thenReturn(settings(Path.of("/tmp/original.db")));
     }
 
@@ -76,6 +84,21 @@ class EveryBlockPluginTest {
         verify(config, never()).apply(any());
         assertEquals("original", messages.string("tag", java.util.Map.of(), null));
         verifyNoInteractions(blocks, items, tracker, gui, itemGui);
+    }
+
+    @Test
+    void reloadThatShrinksTheCatalogueToTheCollectedBlocksTriggersCompletion() {
+        when(config.prepare()).thenReturn(settings(Path.of("/tmp/original.db")));
+        doReturn(new YamlConfiguration()).when(messages).prepare();
+        when(progress.collectedCount()).thenReturn(9);
+        when(progress.totalCount()).thenReturn(10);
+        when(itemProgress.collectedCount()).thenReturn(5);
+        when(itemProgress.totalCount()).thenReturn(5);
+        doAnswer(call -> when(progress.totalCount()).thenReturn(9)).when(blocks).rebuild(any());
+        assertTrue(plugin.reloadPlugin());
+        var order = inOrder(blocks, tracker);
+        order.verify(blocks).rebuild(any());
+        order.verify(tracker).catalogueChanged(false, true);
     }
 
     @Test
