@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>EveryBlock: rarities</title>
+    <meta charset="UTF-8" />
+    <style>
+      @font-face { font-family: "Press Start 2P"; src: url(fonts/press-start-2p-latin-400-normal.woff2) format("woff2"); }
+      @font-face { font-family: "VT323"; src: url(fonts/vt323-latin-400-normal.woff2) format("woff2"); }
+      @font-face { font-family: "Caveat"; font-weight: 600; src: url(fonts/caveat-latin-600-normal.woff2) format("woff2"); }
+      html, body { margin: 0; background: #171717; overflow: hidden; }
+      canvas { display: block; }
+    </style>
+    <script src="art.js"></script>
+  </head>
+  <body>
+    <canvas></canvas>
+    <script>
+      // Gallery 2, 1280 x 720: five rarity tiers, each celebrated louder than the last.
+      ;(async () => {
+        const { ctx, w, h, rng } = await setup()
+        field(ctx, w, h, 23)
+        scanTitle(ctx, [['FIVE ', [PAL.white, '#9a9a9a']], ['RARITIES', [PAL.peach, '#d77a64']]], w / 2, 92, 38, { align: 'center', spacing: 4 })
+        text(ctx, 'RARER FINDS GET BIGGER CELEBRATIONS: TITLES, SOUNDS, PARTICLES AND FIREWORKS.', w / 2, 150, { font: FONT.term, size: 28, color: PAL.ink, offset: 2 })
+        const tiers = [
+          ['cobble', 'COMMON', '#f2f2f2', null, 'COBBLESTONE'],
+          ['copper', 'UNCOMMON', PAL.green, null, 'COPPER BLOCK'],
+          ['diamondOre', 'RARE', PAL.cyan, null, 'DIAMOND ORE'],
+          ['gilded', 'EPIC', ['#C084FC', '#8B5CF6'], ['#C084FC', '#8B5CF6', PAL.white], 'GILDED BLACKSTONE'],
+          ['beacon', 'LEGENDARY', ['#FFF176', '#FF8C00'], ['#FFF176', '#FFD700', '#FF8C00', PAL.white], 'BEACON'],
+        ]
+        const size = 128, gap = 92
+        const total = tiers.length * size + (tiers.length - 1) * gap
+        tiers.forEach(([kind, label, color, fx, name], i) => {
+          const x = (w - total) / 2 + i * (size + gap), y = 320
+          const cx = x + size / 2, cy = y + size / 2
+          if (i >= 2) burst(ctx, rng, cx, cy, size * (0.6 + i * 0.12), 20 + i * 18, fx || [color, PAL.white], 4)
+          if (i >= 3) firework(ctx, rng, cx, cy - 6, size * (0.55 + (i - 3) * 0.2), fx)
+          tile(ctx, kind, x, y, size, { found: true, seed: i + 5, glow: i >= 2 ? (Array.isArray(color) ? color[1] : color) : null })
+          ctx.font = `14px ${FONT.pixel}`
+          let fill = color
+          if (Array.isArray(color)) {
+            const lw = ctx.measureText(label).width
+            const g = ctx.createLinearGradient(cx - lw / 2, 0, cx + lw / 2, 0)
+            g.addColorStop(0, color[0]); g.addColorStop(1, color[1]); fill = g
+          }
+          text(ctx, label, cx, y + size + 46, { font: FONT.pixel, size: 14, color: fill, spacing: 1 })
+          text(ctx, name, cx, y + size + 78, { font: FONT.term, size: 24, color: PAL.mid, offset: 2 })
+        })
+        handNote(ctx, (w + total) / 2 - size / 2 - 30, 320 + size + 110, 'everyone sees this!', { flip: true, rotate: 4 })
+        done()
+      })()
+    </script>
+  </body>
+</html>

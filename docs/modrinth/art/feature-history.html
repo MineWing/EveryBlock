@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>EveryBlock: shared history</title>
+    <meta charset="UTF-8" />
+    <style>
+      @font-face { font-family: "Press Start 2P"; src: url(fonts/press-start-2p-latin-400-normal.woff2) format("woff2"); }
+      @font-face { font-family: "VT323"; src: url(fonts/vt323-latin-400-normal.woff2) format("woff2"); }
+      @font-face { font-family: "Caveat"; font-weight: 600; src: url(fonts/caveat-latin-600-normal.woff2) format("woff2"); }
+      html, body { margin: 0; background: #171717; overflow: hidden; }
+      canvas { display: block; }
+    </style>
+    <script src="art.js"></script>
+  </head>
+  <body>
+    <canvas></canvas>
+    <script>
+      // Gallery 4, 1280 x 720: discoveries, first finders and the leaderboard.
+      ;(async () => {
+        const { ctx, w, h, rng } = await setup()
+        field(ctx, w, h, 51)
+        scanTitle(ctx, [['SHARED ', [PAL.white, '#9a9a9a']], ['HISTORY', [PAL.peach, '#d77a64']]], w / 2, 92, 38, { align: 'center', spacing: 4 })
+        text(ctx, 'EVERY FIRST FIND IS REMEMBERED: WHO FOUND IT, WHEN, AND WHO IS LEADING.', w / 2, 150, { font: FONT.term, size: 28, color: PAL.ink, offset: 2 })
+
+        // Chat feed.
+        const chat = [
+          [PAL.peach, 'BLOCKS »', ' Sam found ', ['Diamond Ore', PAL.cyan], ' (412/1104)'],
+          [PAL.peach, 'BLOCKS »', ' Jordan found ', ['5 new blocks!', PAL.peach], ' (417/1104)'],
+          [PAL.peach, 'BLOCKS »', ' ', ['EPIC FIND!', '#C084FC'], ' Riley found Gilded Blackstone'],
+          [PAL.peach, 'BLOCKS »', ' ', ['40% COMPLETE!', PAL.peach], ' Only 662 blocks remain.'],
+        ]
+        const cx = 90, cy = 230
+        ctx.fillStyle = 'rgba(0,0,0,0.45)'
+        ctx.fillRect(cx - 16, cy - 30, 640, chat.length * 46 + 30)
+        chat.forEach((parts, i) => {
+          let x = cx
+          const y = cy + i * 46
+          x += text(ctx, parts[1], x, y, { font: FONT.term, size: 30, color: parts[0], align: 'left', offset: 2 })
+          for (const p of parts.slice(2)) {
+            const [s, c] = Array.isArray(p) ? p : [p, PAL.white]
+            x += text(ctx, s, x, y, { font: FONT.term, size: 30, color: c, align: 'left', offset: 2 })
+          }
+        })
+
+        // Tooltip over a collected block, Minecraft style.
+        const tx = 150, ty = 470
+        tile(ctx, 'diamondOre', tx, ty, 96, { found: true, seed: 9, check: true })
+        const bx = tx + 120, by = ty - 6, bw = 380, bh = 150
+        ctx.fillStyle = '#100010'; ctx.fillRect(bx, by, bw, bh)
+        ctx.strokeStyle = '#2a0f5a'; ctx.lineWidth = 3; ctx.strokeRect(bx + 4, by + 4, bw - 8, bh - 8)
+        text(ctx, '✔ DIAMOND ORE', bx + 20, by + 30, { font: FONT.term, size: 30, color: PAL.green, align: 'left', offset: 2 })
+        text(ctx, '│ RARITY: RARE', bx + 20, by + 64, { font: FONT.term, size: 26, color: PAL.cyan, align: 'left', offset: 2 })
+        text(ctx, '│ FOUND BY: SAM', bx + 20, by + 94, { font: FONT.term, size: 26, color: PAL.peach, align: 'left', offset: 2 })
+        text(ctx, '│ DISCOVERED: 21 OCT 2026, 19:42', bx + 20, by + 124, { font: FONT.term, size: 26, color: PAL.light, align: 'left', offset: 2 })
+
+        // Leaderboard.
+        const lx = 810, ly = 230
+        text(ctx, 'TOP BLOCK HUNTERS', lx, ly - 10, { font: FONT.pixel, size: 16, color: PAL.peach, align: 'left', spacing: 2 })
+        const top = [['Sam', 128], ['Jordan', 97], ['Riley', 81], ['Alex', 64], ['Casey', 42]]
+        top.forEach(([name, n], i) => {
+          const y = ly + 48 + i * 52
+          text(ctx, `${i + 1}.`, lx, y, { font: FONT.pixel, size: 14, color: PAL.mid, align: 'left' })
+          text(ctx, name.toUpperCase(), lx + 50, y, { font: FONT.term, size: 32, color: PAL.white, align: 'left', offset: 2 })
+          const barW = Math.round((n / 128) * 200)
+          ctx.fillStyle = i === 0 ? PAL.peach : '#4a4a4a'
+          ctx.fillRect(lx + 190, y - 8, barW, 16)
+          text(ctx, String(n), lx + 190 + barW + 14, y, { font: FONT.pixel, size: 12, color: i === 0 ? PAL.gold : PAL.light, align: 'left' })
+        })
+        handNote(ctx, bx + bw + 14, by + 94, 'first finder wins', { rotate: -4 })
+        done()
+      })()
+    </script>
+  </body>
+</html>

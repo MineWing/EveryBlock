@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>EveryBlock: collect every block</title>
+    <meta charset="UTF-8" />
+    <style>
+      @font-face { font-family: "Press Start 2P"; src: url(fonts/press-start-2p-latin-400-normal.woff2) format("woff2"); }
+      @font-face { font-family: "VT323"; src: url(fonts/vt323-latin-400-normal.woff2) format("woff2"); }
+      @font-face { font-family: "Caveat"; font-weight: 600; src: url(fonts/caveat-latin-600-normal.woff2) format("woff2"); }
+      html, body { margin: 0; background: #171717; overflow: hidden; }
+      canvas { display: block; }
+    </style>
+    <script src="art.js"></script>
+  </head>
+  <body>
+    <canvas></canvas>
+    <script>
+      // Gallery 1, 1280 x 720: the collection coming back into colour.
+      ;(async () => {
+        const { ctx, w, h, rng } = await setup()
+        field(ctx, w, h, 11)
+        scanTitle(ctx, [['COLLECT ', [PAL.white, '#9a9a9a']], ['EVERY', [PAL.peach, '#d77a64']], [' BLOCK', [PAL.white, '#9a9a9a']]], w / 2, 92, 34, { align: 'center', spacing: 3 })
+        text(ctx, 'MINED, CRAFTED, TRADED OR LOOTED: IF IT LANDS IN YOUR INVENTORY, IT COUNTS.', w / 2, 150, { font: FONT.term, size: 28, color: PAL.ink, offset: 2 })
+        const kinds = Object.keys(BLOCKS).filter(k => k !== 'glass')
+        const cols = 13, rows = 4, size = 64, gap = 12
+        const gx = (w - (cols * size + (cols - 1) * gap)) / 2, gy = 200
+        const r = new Rng(21)
+        for (let i = 0; i < cols * rows; i++) {
+          const kind = kinds[(i * 7) % kinds.length]
+          const found = r.next() < 0.45
+          tile(ctx, kind, gx + (i % cols) * (size + gap), gy + Math.floor(i / cols) * (size + gap), size, { found, seed: i + 3, check: found })
+        }
+        const pi = 5
+        const px = gx + (pi % cols) * (size + gap), py = gy + Math.floor(pi / cols) * (size + gap)
+        tile(ctx, 'gold', px - 6, py - 6, size + 12, { found: true, seed: 2, glow: PAL.gold })
+        bracket(ctx, px + size / 2, py + size / 2, size / 2 + 14, 10, 2)
+        burst(ctx, rng, px + size / 2, py + size / 2, size, 50, [PAL.gold, PAL.orange, PAL.white], 4)
+        ring(ctx, px + size / 2, py + size / 2, size * 0.95, PAL.orange, 0.6)
+        text(ctx, '+1 BLOCK', px + size / 2, py - 24, { font: FONT.pixel, size: 12, color: PAL.gold })
+        text(ctx, 'TEAM PROGRESS', 240, 560, { font: FONT.pixel, size: 12, color: PAL.light, align: 'left', spacing: 3 })
+        text(ctx, '412 / 1104  •  37.3%', w - 240, 560, { font: FONT.pixel, size: 12, color: PAL.mid, align: 'right', spacing: 2 })
+        segmentBar(ctx, 240, 580, w - 480, 30, 30, 12)
+        text(ctx, '1,100+ OBTAINABLE BLOCKS, BUILT AUTOMATICALLY FROM THE GAME', w / 2, 660, { font: FONT.term, size: 26, color: PAL.mid, offset: 2 })
+        done()
+      })()
+    </script>
+  </body>
+</html>
