@@ -54,10 +54,12 @@ public final class ItemCatalogue {
             }
         }
 
-        items = selected.stream()
+        List<Material> sorted = selected.stream()
                 .sorted(Comparator.comparing(material -> Text.pretty(material.name())))
                 .toList();
-        itemSet = Set.copyOf(items);
+        // Publish the set first: readers that observe the new list must also observe its set.
+        itemSet = Set.copyOf(sorted);
+        items = sorted;
         if (plugin != null) {
             plugin.getLogger().info("Every Item catalogue contains " + items.size() + " obtainable items."
                     + (settings.itemsEnabled() ? "" : " Tracking is disabled."));
