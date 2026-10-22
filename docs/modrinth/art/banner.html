@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>EveryBlock banner</title>
+    <meta charset="UTF-8" />
+    <style>
+      @font-face { font-family: "Press Start 2P"; src: url(fonts/press-start-2p-latin-400-normal.woff2) format("woff2"); }
+      @font-face { font-family: "VT323"; src: url(fonts/vt323-latin-400-normal.woff2) format("woff2"); }
+      @font-face { font-family: "Caveat"; font-weight: 600; src: url(fonts/caveat-latin-600-normal.woff2) format("woff2"); }
+      html, body { margin: 0; background: #171717; overflow: hidden; }
+      canvas { display: block; }
+    </style>
+    <script src="art.js"></script>
+  </head>
+  <body>
+    <canvas></canvas>
+    <script>
+      // Description banner, 1280 x 360: the title and team progress on the left,
+      // a collection grid coming back into colour on the right.
+      ;(async () => {
+        const { ctx, w, h, rng } = await setup()
+        field(ctx, w, h, 4242)
+        fade(ctx, 0, 0, w * 0.56, h, 0.94, 0)
+
+        const kinds = [
+          ['diamondOre', 0], ['stone', 1], ['planks', 0], ['grass', 1], ['bricks', 1], ['sand', 0],
+          ['log', 1], ['amethyst', 0], ['cobble', 1], ['copper', 0], ['ice', 0], ['tnt', 1],
+          ['netherrack', 0], ['bookshelf', 1], ['gold', 0], ['crying', 0], ['melon', 1], ['sculk', 0],
+        ]
+        const size = 62, gap = 12, cols = 6
+        const gx = w - (size + gap) * cols - 40, gy = 70
+        kinds.forEach(([kind, found], i) => {
+          const x = gx + (i % cols) * (size + gap)
+          const y = gy + Math.floor(i / cols) * (size + gap)
+          tile(ctx, kind, x, y, size, { found: !!found, seed: i + 1, check: !!found })
+        })
+
+        // The moment of discovery: diamond ore pops back into colour.
+        const di = 0
+        const dx = gx + (di % cols) * (size + gap), dy = gy
+        tile(ctx, 'diamondOre', dx - 6, dy - 6, size + 12, { found: true, seed: 9, glow: PAL.cyan })
+        bracket(ctx, dx + size / 2, dy + size / 2, size / 2 + 14, 10, 2, PAL.light)
+        burst(ctx, rng, dx + size / 2, dy + size / 2, size * 0.95, 46, [PAL.cyan, '#a6f4ff', PAL.white, PAL.gold], 4)
+        ring(ctx, dx + size / 2, dy + size / 2, size * 0.9, PAL.cyan, 0.5)
+        text(ctx, '+1 BLOCK', dx + size / 2, dy - 26, { font: FONT.pixel, size: 12, color: PAL.gold })
+        handNote(ctx, dx - 20, dy + size * 0.85, 'found it!', { scale: 1, flip: true, rotate: 6 })
+
+        pixel(ctx, gx - 70, h * 0.84, 9, PAL.peach, 0.16)
+        pixel(ctx, w - 18, h * 0.86, 8, PAL.gold, 0.14)
+
+        scanTitle(ctx, [['EVERY', [PAL.white, '#9a9a9a']], ['BLOCK', [PAL.peach, '#d77a64']]], 48, h * 0.34, 54, { spacing: 4 })
+        text(ctx, 'ONE SERVER. EVERY BLOCK. EVERYONE.', 52, h * 0.58, { font: FONT.term, size: 30, color: PAL.ink, align: 'left', offset: 2, spacing: 1 })
+        text(ctx, 'TEAM PROGRESS', 52, h * 0.73, { font: FONT.pixel, size: 10, color: PAL.light, align: 'left', spacing: 3 })
+        text(ctx, '412 / 1104', 52 + 460, h * 0.73, { font: FONT.pixel, size: 10, color: PAL.mid, align: 'right', spacing: 2 })
+        segmentBar(ctx, 52, h * 0.77, 460, 22, 20, 8)
+        done()
+      })()
+    </script>
+  </body>
+</html>

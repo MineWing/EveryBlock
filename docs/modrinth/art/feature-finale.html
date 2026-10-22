@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>EveryBlock: the finale</title>
+    <meta charset="UTF-8" />
+    <style>
+      @font-face { font-family: "Press Start 2P"; src: url(fonts/press-start-2p-latin-400-normal.woff2) format("woff2"); }
+      @font-face { font-family: "VT323"; src: url(fonts/vt323-latin-400-normal.woff2) format("woff2"); }
+      @font-face { font-family: "Caveat"; font-weight: 600; src: url(fonts/caveat-latin-600-normal.woff2) format("woff2"); }
+      html, body { margin: 0; background: #171717; overflow: hidden; }
+      canvas { display: block; }
+    </style>
+    <script src="art.js"></script>
+  </head>
+  <body>
+    <canvas></canvas>
+    <script>
+      // Gallery 3, 1280 x 720: the server-wide finale when the last block is found.
+      ;(async () => {
+        const { ctx, w, h, rng } = await setup()
+        field(ctx, w, h, 37)
+        vignette(ctx, w, h, 0.5)
+        firework(ctx, rng, 190, 170, 110, [PAL.peach, PAL.white, PAL.gold])
+        firework(ctx, rng, 1080, 140, 96, ['#FFD65A', PAL.peach, PAL.white])
+        firework(ctx, rng, 1110, 560, 80, [PAL.cyan, PAL.white, PAL.violet])
+        firework(ctx, rng, 170, 570, 70, [PAL.gold, PAL.orange, PAL.white])
+        scanTitle(ctx, [['EVERY. SINGLE.', [PAL.white, '#9a9a9a']]], w / 2, 230, 44, { align: 'center', spacing: 4 })
+        scanTitle(ctx, [['BLOCK.', [PAL.peach, '#d77a64']]], w / 2, 310, 64, { align: 'center', spacing: 6 })
+        text(ctx, 'CHALLENGE COMPLETE', w / 2, 392, { font: FONT.pixel, size: 16, color: PAL.gold, spacing: 4 })
+        const lines = [
+          ['Combined playtime', '214h 12m'],
+          ['Block hunters', '7'],
+          ['Final block', 'Sniffer Egg'],
+        ]
+        lines.forEach(([k, v], i) => {
+          const y = 462 + i * 40
+          text(ctx, k.toUpperCase(), w / 2 - 20, y, { font: FONT.term, size: 30, color: PAL.mid, align: 'right', offset: 2 })
+          text(ctx, '»', w / 2, y, { font: FONT.term, size: 30, color: PAL.dark, offset: 2 })
+          text(ctx, v.toUpperCase(), w / 2 + 20, y, { font: FONT.term, size: 30, color: PAL.white, align: 'left', offset: 2 })
+        })
+        segmentBar(ctx, w / 2 - 300, 610, 600, 26, 24, 24, { on: PAL.peach, hot: PAL.peach })
+        text(ctx, '1104 / 1104', w / 2, 660, { font: FONT.pixel, size: 12, color: PAL.light, spacing: 3 })
+        done()
+      })()
+    </script>
+  </body>
+</html>
