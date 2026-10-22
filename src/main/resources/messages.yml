@@ -270,6 +270,8 @@ database-error:
 # ---------------------------------------------------------------------------
 gui:
   block-menu:
+    # %category%, %page%, %pages%
+    title: '<#f7a48d><bold>%category%</bold></#f7a48d> <dark_gray>•</dark_gray> <gray>%page%/%pages%</gray>'
     # %page%, %pages%
     categories-title: '<#f7a48d><bold>BLOCKS</bold></#f7a48d> <dark_gray>•</dark_gray> <white>Categories</white>'
     recent-title: '<#f7a48d><bold>RECENT DISCOVERIES</bold></#f7a48d> <dark_gray>•</dark_gray> <gray>%page%/%pages%</gray>'
