@@ -17,7 +17,11 @@ public final class Text {
     private Text() {
     }
 
-    /** Sets the brand accent color (colors.primary in messages.yml) used by {@link #accentColor()}. */
+    /**
+     * Sets the brand accent color returned by {@link #accentColor()}. The plugin feeds
+     * it from {@code gui.progress-bar.filled} in messages.yml; blank or null falls
+     * back to the default {@code #f7a48d}.
+     */
     public static void configureAccent(String color) {
         accentColor = color == null || color.isBlank() ? "#f7a48d" : color;
     }

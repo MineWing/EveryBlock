@@ -39,6 +39,24 @@ class ConfigServiceTest {
     }
 
     @Test
+    void explicitNullValuesFallBackToDefaults() throws Exception {
+        PluginSettings settings = prepare("participants:\n  mode: ~\ngui:\n  date-format: ~\n  title: ~\n");
+        assertEquals(PluginSettings.ParticipantMode.EVERYONE, settings.participantMode());
+        assertEquals("dd MMM yyyy, HH:mm", settings.dateFormat());
+        assertTrue(settings.guiTitle().contains("%category%"));
+    }
+
+    @Test
+    void invalidModeAndDatePatternNameTheirKeys() {
+        IllegalArgumentException mode = assertThrows(IllegalArgumentException.class,
+                () -> prepare("participants:\n  mode: '  '\n"));
+        assertTrue(mode.getMessage().contains("participants.mode"));
+        IllegalArgumentException date = assertThrows(IllegalArgumentException.class,
+                () -> prepare("gui:\n  date-format: 'dd {'\n"));
+        assertTrue(date.getMessage().contains("gui.date-format"));
+    }
+
+    @Test
     void aBadMessageDocumentPreservesBothPreviouslyLoadedDocuments() throws Exception {
         ConfigService config = new ConfigService(null);
         MessageService messages = new MessageService(null);
