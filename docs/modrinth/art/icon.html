@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>EveryBlock icon</title>
+    <meta charset="UTF-8" />
+    <style>
+      @font-face { font-family: "Press Start 2P"; src: url(fonts/press-start-2p-latin-400-normal.woff2) format("woff2"); }
+      @font-face { font-family: "VT323"; src: url(fonts/vt323-latin-400-normal.woff2) format("woff2"); }
+      @font-face { font-family: "Caveat"; font-weight: 600; src: url(fonts/caveat-latin-600-normal.woff2) format("woff2"); }
+      html, body { margin: 0; background: #171717; overflow: hidden; }
+      canvas { display: block; }
+    </style>
+    <script src="art.js"></script>
+  </head>
+  <body>
+    <canvas></canvas>
+    <script>
+      // Project icon, 512 x 512: one block in colour inside OnePixel's target bracket,
+      // with greyed-out blocks still waiting behind it.
+      ;(async () => {
+        const { ctx, w, h, rng } = await setup()
+        field(ctx, w, h, 77, 16)
+        tile(ctx, 'stone', 28, 300, 120, { found: false, seed: 2 })
+        tile(ctx, 'planks', 364, 92, 120, { found: false, seed: 4 })
+        vignette(ctx, w, h, 0.7)
+        const s = 236
+        const x = (w - s) / 2, y = (h - s) / 2
+        tile(ctx, 'grass', x, y, s, { found: true, seed: 5 })
+        bracket(ctx, w / 2, h / 2, s / 2 + 34, 44, 10, PAL.peach)
+        pixel(ctx, w / 2 + s / 2 + 52, h / 2 - s / 2 - 46, 22, PAL.gold, 0.18)
+        done()
+      })()
+    </script>
+  </body>
+</html>
