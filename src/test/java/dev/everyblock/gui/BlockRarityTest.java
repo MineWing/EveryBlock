@@ -1,8 +1,12 @@
 package dev.everyblock.gui;
 
+import org.bukkit.Material;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class BlockRarityTest {
@@ -22,6 +26,32 @@ class BlockRarityTest {
         assertEquals(BlockRarity.LEGENDARY, BlockRarity.ofName("NETHERITE_BLOCK"));
         assertEquals(BlockRarity.LEGENDARY, BlockRarity.ofName("SNIFFER_EGG"));
         assertEquals(BlockRarity.LEGENDARY, BlockRarity.ofName("WITHER_ROSE"));
+    }
+
+    @Test
+    void deepslateOresAreAtLeastAsRareAsTheirStoneVariant() {
+        assertEquals(BlockRarity.RARE, BlockRarity.ofName("DEEPSLATE_DIAMOND_ORE"));
+        assertEquals(BlockRarity.LEGENDARY, BlockRarity.ofName("DEEPSLATE_EMERALD_ORE"));
+        assertEquals(BlockRarity.LEGENDARY, BlockRarity.ofName("DEEPSLATE_COAL_ORE"));
+        assertEquals(BlockRarity.UNCOMMON, BlockRarity.ofName("DEEPSLATE_IRON_ORE"));
+        assertEquals(BlockRarity.UNCOMMON, BlockRarity.ofName("DEEPSLATE_COPPER_ORE"));
+        for (String ore : List.of("COAL", "IRON", "COPPER", "GOLD", "REDSTONE", "LAPIS", "DIAMOND", "EMERALD")) {
+            BlockRarity stone = BlockRarity.ofName(ore + "_ORE");
+            BlockRarity deepslate = BlockRarity.ofName("DEEPSLATE_" + ore + "_ORE");
+            assertTrue(deepslate.compareTo(stone) >= 0, ore);
+        }
+    }
+
+    @Test
+    void memoisedLookupMatchesClassification() {
+        for (Material material : Material.values()) {
+            if (material.name().startsWith("LEGACY_")) {
+                continue;
+            }
+            BlockRarity first = BlockRarity.of(material);
+            assertEquals(BlockRarity.ofName(material.name()), first, material.name());
+            assertSame(first, BlockRarity.of(material));
+        }
     }
 
     @Test

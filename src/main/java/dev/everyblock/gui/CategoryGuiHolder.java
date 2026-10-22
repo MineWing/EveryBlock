@@ -1,10 +1,9 @@
 package dev.everyblock.gui;
 
 import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.InventoryHolder;
 import org.jetbrains.annotations.NotNull;
 
-public final class CategoryGuiHolder implements InventoryHolder {
+public final class CategoryGuiHolder implements EveryBlockMenu {
     private Inventory inventory;
 
     public void inventory(Inventory inventory) {

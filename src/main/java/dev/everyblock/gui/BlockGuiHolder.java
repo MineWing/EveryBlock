@@ -1,10 +1,9 @@
 package dev.everyblock.gui;
 
 import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.InventoryHolder;
 import org.jetbrains.annotations.NotNull;
 
-public final class BlockGuiHolder implements InventoryHolder {
+public final class BlockGuiHolder implements EveryBlockMenu {
     private final int page;
     private final BlockFilter filter;
     private final String query;
