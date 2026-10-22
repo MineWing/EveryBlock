@@ -7,10 +7,12 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.title.Title;
 import org.bukkit.Color;
 import org.bukkit.FireworkEffect;
+import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 import org.bukkit.Registry;
 import org.bukkit.Sound;
+import org.bukkit.World;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -36,12 +38,21 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 
 public final class MessageService implements Listener {
     private static final NamespacedKey CELEBRATION = new NamespacedKey("everyblock", "celebration");
+    /** Recipients within this many blocks of an existing launch point share its firework. */
+    static final double FIREWORK_CLUSTER_RADIUS = 16.0;
+    /** Upper bound on fireworks spawned per launch round, regardless of player count. */
+    static final int MAX_FIREWORK_LAUNCH_POINTS = 32;
     private final Map<BossBar, List<Player>> activeBossBars = new HashMap<>();
     private final Set<Firework> activeFireworks = new HashSet<>();
+    private final ResolutionCache<Sound> sounds = new ResolutionCache<>(MessageService::lookupSound);
+    private final ResolutionCache<Particle> particles = new ResolutionCache<>(MessageService::lookupParticle);
     private final JavaPlugin plugin;
     private YamlConfiguration messages;
 
@@ -63,6 +74,8 @@ public final class MessageService implements Listener {
 
     public void apply(YamlConfiguration prepared) {
         messages = Objects.requireNonNull(prepared);
+        sounds.clear();
+        particles.clear();
     }
 
     public void send(CommandSender recipient, String key) {
@@ -202,7 +215,7 @@ public final class MessageService implements Listener {
         if (parts.length == 0) {
             throw new IllegalArgumentException("sound name is required");
         }
-        Sound sound = resolveSound(parts[0]);
+        Sound sound = sounds.resolve(parts[0]);
         if (sound == null) {
             throw new IllegalArgumentException("unknown sound " + parts[0]);
         }
@@ -216,7 +229,7 @@ public final class MessageService implements Listener {
         if (parts.length == 0) {
             throw new IllegalArgumentException("particle name is required");
         }
-        Particle particle = resolveParticle(parts[0]);
+        Particle particle = particles.resolve(parts[0]);
         if (particle == null) {
             throw new IllegalArgumentException("unknown particle " + parts[0]);
         }
@@ -239,10 +252,35 @@ public final class MessageService implements Listener {
         int gap = Math.max(0, integer(parts, 4, 10));
         for (int index = 0; index < count; index++) {
             long delay = (long) index * gap;
-            plugin.getServer().getScheduler().runTaskLater(plugin, () -> players.stream()
-                    .filter(Player::isOnline)
-                    .forEach(player -> launch(player, colors, type, power)), delay);
+            plugin.getServer().getScheduler().runTaskLater(plugin, () -> launchPoints(players)
+                    .forEach(location -> launch(location, colors, type, power)), delay);
         }
+    }
+
+    /**
+     * One launch point per cluster of online recipients: a player within
+     * {@link #FIREWORK_CLUSTER_RADIUS} blocks of an already chosen point in the same
+     * world shares it, and a round never exceeds {@link #MAX_FIREWORK_LAUNCH_POINTS}.
+     */
+    static List<Location> launchPoints(List<Player> players) {
+        double radiusSquared = FIREWORK_CLUSTER_RADIUS * FIREWORK_CLUSTER_RADIUS;
+        List<Location> points = new ArrayList<>();
+        for (Player player : players) {
+            if (points.size() >= MAX_FIREWORK_LAUNCH_POINTS) {
+                break;
+            }
+            if (!player.isOnline()) {
+                continue;
+            }
+            Location location = player.getLocation();
+            World world = location.getWorld();
+            boolean covered = points.stream().anyMatch(point -> Objects.equals(point.getWorld(), world)
+                    && point.distanceSquared(location) <= radiusSquared);
+            if (!covered) {
+                points.add(location);
+            }
+        }
+        return points;
     }
 
     private void showBossBar(List<Player> players, String payload) {
@@ -261,15 +299,19 @@ public final class MessageService implements Listener {
                 () -> hideBossBar(bossBar), seconds * 20L);
     }
 
-    private void launch(Player player, List<Color> colors, FireworkEffect.Type type, int power) {
-        player.getWorld().spawn(player.getLocation().add(0, 1, 0), Firework.class, firework -> {
+    private void launch(Location location, List<Color> colors, FireworkEffect.Type type, int power) {
+        Firework spawned = location.getWorld().spawn(location.clone().add(0, 1, 0), Firework.class, firework -> {
             firework.getPersistentDataContainer().set(CELEBRATION, PersistentDataType.BYTE, (byte) 1);
-            activeFireworks.add(firework);
             FireworkMeta meta = firework.getFireworkMeta();
             meta.addEffect(FireworkEffect.builder().with(type).withColor(colors).trail(true).flicker(true).build());
             meta.setPower(power);
             firework.setFireworkMeta(meta);
         });
+        // A cancelled spawn never enters the world and never fires EntityRemoveEvent,
+        // so only track fireworks that actually exist.
+        if (spawned != null && spawned.isValid()) {
+            activeFireworks.add(spawned);
+        }
     }
 
     private void hideBossBar(BossBar bossBar) {
@@ -312,7 +354,7 @@ public final class MessageService implements Listener {
         return result;
     }
 
-    private Sound resolveSound(String configured) {
+    private static Sound lookupSound(String configured) {
         NamespacedKey direct = minecraftKey(configured);
         Sound sound = direct == null ? null : Registry.SOUNDS.get(direct);
         if (sound != null) {
@@ -323,7 +365,7 @@ public final class MessageService implements Listener {
                 .findFirst().map(Registry.SOUNDS::get).orElse(null);
     }
 
-    private Particle resolveParticle(String configured) {
+    private static Particle lookupParticle(String configured) {
         NamespacedKey direct = minecraftKey(configured);
         Particle particle = direct == null ? null : Registry.PARTICLE_TYPE.get(direct);
         if (particle != null) {
@@ -343,12 +385,37 @@ public final class MessageService implements Listener {
                 configured.substring(closing + 1).stripLeading());
     }
 
-    private static String replace(String input, Map<String, String> replacements) {
-        String result = input;
-        for (Map.Entry<String, String> replacement : replacements.entrySet()) {
-            result = result.replace("%" + replacement.getKey() + "%", replacement.getValue());
+    /**
+     * Single left-to-right pass: only %key% tokens written in the template are
+     * substituted, so a value containing %tag% (or any other token) is inserted
+     * literally. Unknown tokens and stray percent signs, such as the trailing one
+     * in "%percent%%", are kept as written.
+     */
+    static String replace(String input, Map<String, String> replacements) {
+        StringBuilder result = new StringBuilder(input.length());
+        int index = 0;
+        while (index < input.length()) {
+            int start = input.indexOf('%', index);
+            if (start < 0) {
+                break;
+            }
+            result.append(input, index, start);
+            int end = input.indexOf('%', start + 1);
+            if (end < 0) {
+                index = start;
+                break;
+            }
+            String key = input.substring(start + 1, end);
+            if (replacements.containsKey(key)) {
+                result.append(replacements.get(key));
+                index = end + 1;
+            } else {
+                // Keep the '%' and let the closing one start the next token.
+                result.append('%');
+                index = start + 1;
+            }
         }
-        return result;
+        return result.append(input, index, input.length()).toString();
     }
 
     private static String[] words(String input) {
@@ -409,5 +476,28 @@ public final class MessageService implements Listener {
     }
 
     private record ParsedAction(String tag, String payload) {
+    }
+
+    /**
+     * Remembers registry lookups per configured name, including misses. Legacy
+     * names such as ENTITY_VILLAGER_NO fall back to scanning the whole registry,
+     * which is too slow to repeat on every action. Cleared when messages reload.
+     */
+    static final class ResolutionCache<T> {
+        private final Map<String, Optional<T>> resolved = new ConcurrentHashMap<>();
+        private final Function<String, T> lookup;
+
+        ResolutionCache(Function<String, T> lookup) {
+            this.lookup = lookup;
+        }
+
+        T resolve(String configured) {
+            return resolved.computeIfAbsent(configured, name -> Optional.ofNullable(lookup.apply(name)))
+                    .orElse(null);
+        }
+
+        void clear() {
+            resolved.clear();
+        }
     }
 }
